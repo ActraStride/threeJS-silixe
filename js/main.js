@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // =====================================================================
 // CONFIGURACIÓN BÁSICA DE LA ESCENA
@@ -31,6 +36,15 @@ controls.maxPolarAngle = Math.PI / 2 - 0.02;
 controls.target.set(0, 70, 0);
 
 // =====================================================================
+// ENVIRONMENT MAP (PMREM) - clave para reflejos realistas en vidrio/aluminio
+// =====================================================================
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+pmremGenerator.compileEquirectangularShader();
+const envRT = pmremGenerator.fromScene(new RoomEnvironment(), 0.04);
+scene.environment = envRT.texture;
+pmremGenerator.dispose();
+
+// =====================================================================
 // ILUMINACIÓN TIPO SHOWROOM
 // =====================================================================
 const ambientLight = new THREE.AmbientLight(0x8899bb, 0.35);
@@ -49,6 +63,7 @@ keyLight.shadow.camera.right = 300;
 keyLight.shadow.camera.top = 300;
 keyLight.shadow.camera.bottom = -300;
 keyLight.shadow.bias = -0.0005;
+keyLight.shadow.radius = 4; // sombras más suaves
 scene.add(keyLight);
 
 // Luz de relleno (fill light) - tono frío para contraste
@@ -67,6 +82,7 @@ spotLight.position.set(0, 320, 80);
 spotLight.castShadow = true;
 spotLight.shadow.mapSize.width = 1024;
 spotLight.shadow.mapSize.height = 1024;
+spotLight.shadow.radius = 3;
 spotLight.target.position.set(0, 60, 0);
 scene.add(spotLight);
 scene.add(spotLight.target);
@@ -90,6 +106,122 @@ const grid = new THREE.GridHelper(800, 40, 0x2a3a55, 0x16203a);
 grid.position.y = 0.05;
 scene.add(grid);
 
+// -----------------------------------------------------------
+// Sombra de contacto (AO falso) bajo la vitrina
+// -----------------------------------------------------------
+function crearTexturaSombraContacto() {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, 'rgba(0,0,0,0.55)');
+    gradient.addColorStop(0.6, 'rgba(0,0,0,0.25)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+
+const sombraContactoTex = crearTexturaSombraContacto();
+const sombraContactoMat = new THREE.MeshBasicMaterial({
+    map: sombraContactoTex,
+    transparent: true,
+    depthWrite: false,
+});
+const sombraContactoGeo = new THREE.PlaneGeometry(1, 1);
+const sombraContacto = new THREE.Mesh(sombraContactoGeo, sombraContactoMat);
+sombraContacto.rotation.x = -Math.PI / 2;
+sombraContacto.position.y = 0.08; // ligeramente sobre el piso para evitar z-fighting
+scene.add(sombraContacto);
+
+// =====================================================================
+// TEXTURAS PROCEDURALES DE MADERA (normal + roughness)
+// =====================================================================
+function crearTexturaMaderaColor(baseColorHex) {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const base = new THREE.Color(baseColorHex);
+    ctx.fillStyle = `#${base.getHexString()}`;
+    ctx.fillRect(0, 0, size, size);
+
+    // Vetas de madera: líneas horizontales con variación de tono
+    const numVetas = 40;
+    for (let i = 0; i < numVetas; i++) {
+        const y = Math.random() * size;
+        const h = 1 + Math.random() * 4;
+        const shade = (Math.random() - 0.5) * 0.18;
+        const c = base.clone().offsetHSL(0, 0, shade);
+        ctx.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${0.25 + Math.random() * 0.35})`;
+        ctx.fillRect(0, y, size, h);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+
+function crearTexturaMaderaNormal() {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Base: normal apuntando hacia afuera (128,128,255)
+    ctx.fillStyle = 'rgb(128,128,255)';
+    ctx.fillRect(0, 0, size, size);
+
+    // Variaciones sutiles en R/G para simular relieve de veta
+    const numVetas = 60;
+    for (let i = 0; i < numVetas; i++) {
+        const y = Math.random() * size;
+        const h = 1 + Math.random() * 3;
+        const offset = (Math.random() - 0.5) * 30;
+        ctx.fillStyle = `rgb(${128 + offset}, ${128 + offset * 0.5}, 255)`;
+        ctx.fillRect(0, y, size, h);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+}
+
+function crearTexturaMaderaRoughness() {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = 'rgb(140,140,140)';
+    ctx.fillRect(0, 0, size, size);
+
+    const numVetas = 60;
+    for (let i = 0; i < numVetas; i++) {
+        const y = Math.random() * size;
+        const h = 1 + Math.random() * 3;
+        const v = 100 + Math.round(Math.random() * 80);
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(0, y, size, h);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+}
+
+const maderaNormalTex = crearTexturaMaderaNormal();
+const maderaRoughnessTex = crearTexturaMaderaRoughness();
+
 // =====================================================================
 // MATERIALES
 // =====================================================================
@@ -102,16 +234,31 @@ const ACABADOS_MADERA = {
     encino: { color: 0xc8a978, roughness: 0.55, name: 'Encino' },
 };
 
+// Cache de texturas de color por acabado (se generan una vez)
+const maderaColorTexCache = {};
+function getMaderaColorTex(key, color) {
+    if (!maderaColorTexCache[key]) {
+        maderaColorTexCache[key] = crearTexturaMaderaColor(color);
+    }
+    return maderaColorTexCache[key];
+}
+
 function crearMaterialMadera(key) {
     const def = ACABADOS_MADERA[key] || ACABADOS_MADERA.nogal;
+    const colorTex = getMaderaColorTex(key, def.color);
+
     return new THREE.MeshStandardMaterial({
-        color: def.color,
+        map: colorTex,
+        normalMap: maderaNormalTex,
+        normalScale: new THREE.Vector2(0.4, 0.4),
+        roughnessMap: maderaRoughnessTex,
         roughness: def.roughness,
         metalness: 0.05,
+        envMapIntensity: 0.6,
     });
 }
 
-// Vidrio realista con transmisión (requiere WebGL2, soportado por three r128 vía MeshPhysicalMaterial)
+// Vidrio realista con transmisión + atenuación (tinte sutil en bordes gruesos)
 const materialCristal = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     transmission: 0.95,
@@ -123,6 +270,8 @@ const materialCristal = new THREE.MeshPhysicalMaterial({
     thickness: 0.5,
     envMapIntensity: 1.2,
     clearcoat: 0.3,
+    attenuationColor: new THREE.Color(0xe8f4ff),
+    attenuationDistance: 50,
     side: THREE.DoubleSide,
 });
 
@@ -134,6 +283,8 @@ const materialEntrepaño = new THREE.MeshPhysicalMaterial({
     roughness: 0.08,
     thickness: 0.3,
     ior: 1.45,
+    attenuationColor: new THREE.Color(0xd8eeff),
+    attenuationDistance: 30,
     side: THREE.DoubleSide,
 });
 
@@ -142,6 +293,7 @@ const materialAluminio = new THREE.MeshStandardMaterial({
     color: 0xd8dadd,
     metalness: 0.95,
     roughness: 0.18,
+    envMapIntensity: 1.4,
 });
 
 // Tira LED (emissive)
@@ -179,6 +331,13 @@ function construirVitrina(params) {
     puertaDerGroup = null;
 
     const materialMadera = crearMaterialMadera(acabado);
+
+    // Ajustar repetición de texturas de madera según dimensiones
+    const repU = Math.max(1, Math.round(ancho / 60));
+    const repV = Math.max(1, Math.round(60 / 60));
+    [materialMadera.map, materialMadera.normalMap, materialMadera.roughnessMap].forEach((t) => {
+        if (t) t.repeat.set(repU, repV);
+    });
 
     const altoBase = 30;
     const altoCorona = 10;
@@ -329,6 +488,13 @@ function construirVitrina(params) {
 
     // Estado inicial de apertura (offsets aplicados en updatePuertas)
     actualizarPosicionPuertas(puertasAbiertas, anchoPuerta);
+
+    // -----------------------------------------------------------
+    // 7. ACTUALIZAR SOMBRA DE CONTACTO según dimensiones
+    // -----------------------------------------------------------
+    const sombraEscalaX = ancho * 1.35;
+    const sombraEscalaZ = profundidad * 1.6;
+    sombraContacto.scale.set(sombraEscalaX, sombraEscalaZ, 1);
 }
 
 let targetPuertaIzqX = 0;
@@ -366,6 +532,23 @@ const state = {
 };
 
 construirVitrina(state);
+
+// =====================================================================
+// POSTPROCESADO: Bloom sutil + Output (color/tonemap correcto)
+// =====================================================================
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(container.clientWidth, container.clientHeight),
+    0.4,   // strength
+    0.5,   // radius
+    0.85   // threshold - solo brillos por encima de esto generan bloom (LEDs, highlights)
+);
+composer.addPass(bloomPass);
+
+const outputPass = new OutputPass();
+composer.addPass(outputPass);
 
 // =====================================================================
 // REFERENCIAS DOM
@@ -467,6 +650,7 @@ window.addEventListener('resize', () => {
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
+    composer.setSize(container.clientWidth, container.clientHeight);
 });
 
 // =====================================================================
@@ -496,7 +680,7 @@ function animate() {
         });
     }
 
-    renderer.render(scene, camera);
+    composer.render();
 }
 
 actualizarPrecio();
