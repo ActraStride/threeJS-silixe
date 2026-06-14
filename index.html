@@ -8,21 +8,23 @@
   * { box-sizing: border-box; }
 
   :root {
-    --bg-deep: #0a0e18;
-    --bg-panel: rgba(17, 24, 39, 0.55);
-    --border-glass: rgba(143, 178, 255, 0.18);
-    --accent: #3b9eff;
-    --accent-glow: #4fd1ff;
-    --text-main: #e6ecff;
-    --text-dim: #8896b3;
+    --bg-deep:        #1a1208;
+    --bg-panel:       rgba(28, 20, 10, 0.82);
+    --bg-card:        rgba(255, 240, 210, 0.04);
+    --border-warm:    rgba(210, 170, 100, 0.18);
+    --accent:         #c8924a;
+    --accent-glow:    #e8b96a;
+    --accent-soft:    rgba(200, 146, 74, 0.15);
+    --text-main:      #f0e6d2;
+    --text-dim:       #9a8870;
+    --text-muted:     #5a4e3e;
+    --separator:      rgba(210, 170, 100, 0.12);
   }
 
   html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle at 30% 20%, #142036 0%, var(--bg-deep) 60%);
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: #1a1208;
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     color: var(--text-main);
     overflow: hidden;
@@ -34,383 +36,555 @@
     height: 100vh;
   }
 
-  /* ---------- PANEL LATERAL ---------- */
+  /* ─────────── PANEL ─────────── */
   #controls-panel {
-    width: 320px;
-    min-width: 320px;
+    width: 300px;
+    min-width: 300px;
     height: 100%;
-    padding: 24px;
+    padding: 20px 18px;
     background: var(--bg-panel);
-    backdrop-filter: blur(18px) saturate(140%);
-    border-right: 1px solid var(--border-glass);
+    backdrop-filter: blur(24px) saturate(120%);
+    border-right: 1px solid var(--border-warm);
     display: flex;
     flex-direction: column;
-    gap: 22px;
+    gap: 0;
     overflow-y: auto;
-    box-shadow: 4px 0 30px rgba(0,0,0,0.35);
+    box-shadow: 4px 0 40px rgba(0,0,0,0.5);
   }
 
-  #controls-panel::-webkit-scrollbar { width: 6px; }
+  #controls-panel::-webkit-scrollbar { width: 4px; }
   #controls-panel::-webkit-scrollbar-thumb {
-    background: rgba(143, 178, 255, 0.25);
+    background: rgba(200,146,74,0.2);
     border-radius: 4px;
   }
 
+  /* ─── Header ─── */
   .panel-header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    border-bottom: 1px solid var(--border-glass);
-    padding-bottom: 14px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--separator);
+  }
+
+  .brand-tag {
+    font-size: 0.66rem;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
   }
 
   .panel-header h1 {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 700;
     margin: 0;
-    letter-spacing: 0.5px;
-    background: linear-gradient(90deg, var(--accent-glow), var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
-  .panel-header span {
-    font-size: 0.78rem;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-
-  /* ---------- SECCIONES ---------- */
-  .section-title {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+    letter-spacing: 0.3px;
     color: var(--accent-glow);
+  }
+
+  /* ─── Secciones ─── */
+  .section {
+    margin-bottom: 18px;
+  }
+
+  .section-title {
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
     margin-bottom: 10px;
     display: flex;
     align-items: center;
     gap: 8px;
+    opacity: 0.9;
   }
 
-  .section-title::before {
+  .section-title::after {
     content: '';
-    display: block;
-    width: 14px;
-    height: 2px;
-    background: var(--accent-glow);
-    border-radius: 2px;
+    flex: 1;
+    height: 1px;
+    background: var(--separator);
   }
 
   .control-group {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid var(--border-glass);
-    border-radius: 14px;
-    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-warm);
+    border-radius: 10px;
+    padding: 13px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
   }
 
-  .control-row {
+  /* ─── Filas de slider ─── */
+  .slider-row label {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 8px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-dim);
+    margin-bottom: 6px;
   }
 
-  .control-row + .control-row { margin-top: 14px; }
-
-  .control-row .value {
+  .slider-row label .val {
     font-weight: 700;
     color: var(--text-main);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
   }
 
-  /* ---------- SLIDERS ---------- */
+  /* ─── Sliders ─── */
   input[type="range"] {
     width: 100%;
     -webkit-appearance: none;
     appearance: none;
-    height: 4px;
-    border-radius: 4px;
-    background: linear-gradient(90deg, var(--accent) 0%, rgba(143,178,255,0.15) 0%);
+    height: 3px;
+    border-radius: 3px;
+    background: var(--separator);
     outline: none;
     cursor: pointer;
+    position: relative;
   }
 
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 14px; height: 14px;
     border-radius: 50%;
     background: var(--accent-glow);
-    box-shadow: 0 0 8px var(--accent-glow), 0 0 2px rgba(0,0,0,0.4);
+    box-shadow: 0 0 7px rgba(232,185,106,0.5);
     cursor: pointer;
-    transition: transform 0.15s ease;
+    transition: transform 0.12s;
   }
 
-  input[type="range"]::-webkit-slider-thumb:hover {
-    transform: scale(1.15);
-  }
-
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
   input[type="range"]::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 14px; height: 14px;
     border-radius: 50%;
     background: var(--accent-glow);
     border: none;
-    box-shadow: 0 0 8px var(--accent-glow);
-    cursor: pointer;
+    box-shadow: 0 0 7px rgba(232,185,106,0.5);
   }
 
-  /* ---------- ACABADOS (SWATCHES) ---------- */
-  .acabados-grid {
+  /* ─── Swatches ─── */
+  .swatches-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-top: 4px;
+    gap: 8px;
   }
 
-  .acabado-btn {
+  .swatch-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
   }
 
-  .acabado-swatch {
+  .swatch-circle {
     width: 100%;
     aspect-ratio: 1;
-    border-radius: 10px;
+    border-radius: 8px;
     border: 2px solid transparent;
-    transition: all 0.18s ease;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    transition: all 0.15s ease;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
   }
 
-  .acabado-btn span {
-    font-size: 0.68rem;
+  .swatch-btn span {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.2;
+    transition: color 0.15s;
+  }
+
+  .swatch-btn.active .swatch-circle {
+    border-color: var(--accent-glow);
+    box-shadow: 0 0 8px rgba(232,185,106,0.4);
+    transform: scale(1.06);
+  }
+
+  .swatch-btn.active span { color: var(--text-main); }
+
+  /* madera */
+  .sw-nogal  { background: linear-gradient(135deg,#7a4e2d,#5c3618); }
+  .sw-blanco { background: linear-gradient(135deg,#f4f0e8,#ddd8cc); }
+  .sw-negro  { background: linear-gradient(135deg,#222,#111); }
+  .sw-encino { background: linear-gradient(135deg,#d4b47a,#b89050); }
+  /* vidrio */
+  .sw-claro     { background: linear-gradient(135deg,rgba(200,230,255,0.5),rgba(150,200,240,0.3)); border: 1px solid rgba(150,200,255,0.4); }
+  .sw-esmerilado{ background: linear-gradient(135deg,rgba(220,220,210,0.5),rgba(180,180,170,0.4)); }
+  .sw-tintado   { background: linear-gradient(135deg,rgba(100,140,100,0.5),rgba(60,100,60,0.4)); }
+
+  /* ─── Opciones de texto (2 o 4 puertas, tipo puerta, etc.) ─── */
+  .opts-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .opt-btn {
+    flex: 1;
+    padding: 8px 6px;
+    border-radius: 7px;
+    border: 1px solid var(--border-warm);
+    background: rgba(255,255,255,0.02);
     color: var(--text-dim);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
     text-align: center;
     line-height: 1.2;
   }
 
-  .acabado-btn.active .acabado-swatch {
+  .opt-btn:hover { border-color: var(--accent); color: var(--text-main); }
+
+  .opt-btn.active {
     border-color: var(--accent-glow);
-    box-shadow: 0 0 10px var(--accent-glow);
-    transform: scale(1.05);
+    background: var(--accent-soft);
+    color: var(--text-main);
+    box-shadow: 0 0 10px rgba(232,185,106,0.1);
   }
 
-  .acabado-btn.active span { color: var(--text-main); }
-
-  .swatch-nogal  { background: #6b4226; }
-  .swatch-blanco { background: #f3f1ec; }
-  .swatch-negro  { background: #161616; }
-  .swatch-encino { background: #c8a978; }
-
-  /* ---------- TOGGLES ---------- */
-  .toggle-btn {
-    width: 100%;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--border-glass);
-    background: rgba(255,255,255,0.03);
+  /* ─── Toggle grande ─── */
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
     color: var(--text-dim);
-    font-size: 0.85rem;
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 34px; height: 18px;
+    cursor: pointer;
+  }
+
+  .toggle-switch input { display: none; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid var(--border-warm);
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  .toggle-switch input:checked ~ .toggle-track {
+    background: var(--accent-soft);
+    border-color: var(--accent-glow);
+  }
+
+  .toggle-switch input:checked ~ .toggle-thumb {
+    transform: translateX(16px);
+    background: var(--accent-glow);
+    box-shadow: 0 0 6px rgba(232,185,106,0.5);
+  }
+
+  /* ─── LED Color Temp ─── */
+  .led-temp-row {
+    display: flex;
+    gap: 6px;
+    opacity: 0.3;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+
+  .led-temp-row.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .led-btn {
+    flex: 1;
+    padding: 7px 4px;
+    border-radius: 7px;
+    border: 1px solid var(--border-warm);
+    background: none;
+    color: var(--text-dim);
+    font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: left;
-    position: relative;
-  }
-
-  .toggle-btn::after {
-    content: '○';
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1rem;
-    color: var(--text-dim);
-  }
-
-  .toggle-btn.active {
-    border-color: var(--accent-glow);
-    color: var(--text-main);
-    background: rgba(79, 209, 255, 0.08);
-    box-shadow: 0 0 14px rgba(79, 209, 255, 0.15);
-  }
-
-  .toggle-btn.active::after {
-    content: '●';
-    color: var(--accent-glow);
-    text-shadow: 0 0 6px var(--accent-glow);
-  }
-
-  .toggle-btn + .toggle-btn { margin-top: 10px; }
-
-  /* ---------- PRECIO ---------- */
-  .price-card {
-    margin-top: auto;
-    background: linear-gradient(135deg, rgba(59,158,255,0.12), rgba(79,209,255,0.04));
-    border: 1px solid var(--border-glass);
-    border-radius: 14px;
-    padding: 18px;
     text-align: center;
+    transition: all 0.15s;
   }
 
-  .price-card .label {
-    font-size: 0.72rem;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+  .led-btn.calido { border-color: rgba(255,200,80,0.3); }
+  .led-btn.frio   { border-color: rgba(120,180,255,0.3); }
+
+  .led-btn.active.calido {
+    background: rgba(255,180,50,0.12);
+    border-color: #ffb832;
+    color: #ffcc66;
+    box-shadow: 0 0 8px rgba(255,180,50,0.2);
+  }
+
+  .led-btn.active.frio {
+    background: rgba(100,170,255,0.1);
+    border-color: #78b4ff;
+    color: #aad4ff;
+    box-shadow: 0 0 8px rgba(100,170,255,0.2);
+  }
+
+  /* ─── Apertura puertas ─── */
+  .apertura-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.8rem;
     color: var(--text-dim);
     margin-bottom: 6px;
   }
 
-  .price-card .price {
-    font-size: 1.8rem;
+  .apertura-row .val { font-weight: 700; color: var(--text-main); font-size: 0.85rem; }
+
+  /* ─── Precio ─── */
+  .price-card {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--separator);
+  }
+
+  .price-label {
+    font-size: 0.64rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .price-amount {
+    font-size: 1.75rem;
     font-weight: 800;
     color: var(--accent-glow);
-    text-shadow: 0 0 16px rgba(79, 209, 255, 0.35);
+    letter-spacing: -0.5px;
   }
 
-  .price-card .currency {
-    font-size: 0.85rem;
+  .price-currency {
+    font-size: 0.8rem;
     color: var(--text-dim);
-    margin-left: 4px;
+    margin-left: 3px;
   }
 
-  .price-card .note {
-    margin-top: 6px;
-    font-size: 0.68rem;
-    color: var(--text-dim);
+  .price-note {
+    margin-top: 5px;
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    line-height: 1.5;
   }
 
-  /* ---------- CANVAS ---------- */
+  /* ─── Canvas ─── */
   #canvas-container {
     flex-grow: 1;
     height: 100%;
     position: relative;
   }
 
-  #canvas-container::after {
-    content: 'APARADOR · MODELO 1 DE 3';
+  .canvas-watermark {
     position: absolute;
-    bottom: 18px;
-    right: 22px;
-    font-size: 0.7rem;
-    letter-spacing: 2px;
-    color: rgba(143, 178, 255, 0.35);
+    bottom: 16px;
+    right: 20px;
+    font-size: 0.64rem;
+    letter-spacing: 2.5px;
+    color: rgba(200,160,80,0.2);
     pointer-events: none;
+    text-transform: uppercase;
+  }
+
+  .canvas-hint {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: rgba(200,160,80,0.25);
+    pointer-events: none;
+    letter-spacing: 1px;
   }
 </style>
 
-<!-- Import Map: librerías locales -->
 <script type="importmap">
 {
-    "imports": {
-        "three": "./js/vendor/three/three.module.js",
-        "three/addons/": "./js/vendor/three/"
-    }
+  "imports": {
+    "three": "./js/vendor/three/three.module.js",
+    "three/addons/": "./js/vendor/three/"
+  }
 }
 </script>
 </head>
 <body>
 <div id="app">
 
-  <!-- ================= PANEL DE CONTROLES ================= -->
+  <!-- ══════════ PANEL ══════════ -->
   <div id="controls-panel">
 
     <div class="panel-header">
-      <span>Vitrinas Sílice · QuoteFlow</span>
+      <div class="brand-tag">Vitrinas Sílice · QuoteFlow</div>
       <h1>Configurador Aparador</h1>
     </div>
 
     <!-- DIMENSIONES -->
-    <div>
+    <div class="section">
       <div class="section-title">Dimensiones</div>
       <div class="control-group">
-        <div class="control-row">
-          <span>Ancho</span>
-          <span class="value"><span id="ancho-val">100</span> cm</span>
+        <div class="slider-row">
+          <label>Ancho <span class="val"><span id="ancho-val">100</span> cm</span></label>
+          <input type="range" id="ancho-slider" min="50" max="200" value="100" step="5">
         </div>
-        <input type="range" id="ancho-slider" min="50" max="200" value="100" step="5">
-
-        <div class="control-row">
-          <span>Alto</span>
-          <span class="value"><span id="alto-val">120</span> cm</span>
+        <div class="slider-row">
+          <label>Alto <span class="val"><span id="alto-val">120</span> cm</span></label>
+          <input type="range" id="alto-slider" min="80" max="220" value="120" step="5">
         </div>
-        <input type="range" id="alto-slider" min="80" max="220" value="120" step="5">
-
-        <div class="control-row">
-          <span>Profundidad</span>
-          <span class="value"><span id="profundidad-val">50</span> cm</span>
+        <div class="slider-row">
+          <label>Profundidad <span class="val"><span id="profundidad-val">50</span> cm</span></label>
+          <input type="range" id="profundidad-slider" min="35" max="90" value="50" step="5">
         </div>
-        <input type="range" id="profundidad-slider" min="35" max="90" value="50" step="5">
       </div>
     </div>
 
-    <!-- ACABADO -->
-    <div>
-      <div class="section-title">Acabado de Madera</div>
+    <!-- ACABADO MADERA -->
+    <div class="section">
+      <div class="section-title">Madera</div>
       <div class="control-group">
-        <div class="acabados-grid">
-          <button class="acabado-btn active" data-acabado="nogal">
-            <span class="acabado-swatch swatch-nogal"></span>
+        <div class="swatches-grid">
+          <button class="swatch-btn active" data-acabado="nogal">
+            <div class="swatch-circle sw-nogal"></div>
             <span>Nogal</span>
           </button>
-          <button class="acabado-btn" data-acabado="blanco">
-            <span class="acabado-swatch swatch-blanco"></span>
+          <button class="swatch-btn" data-acabado="blanco">
+            <div class="swatch-circle sw-blanco"></div>
             <span>Blanco</span>
           </button>
-          <button class="acabado-btn" data-acabado="negro">
-            <span class="acabado-swatch swatch-negro"></span>
-            <span>Negro Mate</span>
+          <button class="swatch-btn" data-acabado="negro">
+            <div class="swatch-circle sw-negro"></div>
+            <span>Negro</span>
           </button>
-          <button class="acabado-btn" data-acabado="encino">
-            <span class="acabado-swatch swatch-encino"></span>
+          <button class="swatch-btn" data-acabado="encino">
+            <div class="swatch-circle sw-encino"></div>
             <span>Encino</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- INTERIOR -->
-    <div>
-      <div class="section-title">Interior</div>
+    <!-- VIDRIO -->
+    <div class="section">
+      <div class="section-title">Vidrio</div>
       <div class="control-group">
-        <div class="control-row">
-          <span>Entrepaños de cristal</span>
-          <span class="value"><span id="entrepanos-val">1</span></span>
+        <div class="swatches-grid" style="grid-template-columns: repeat(3,1fr);">
+          <button class="swatch-btn active" data-vidrio="claro">
+            <div class="swatch-circle sw-claro"></div>
+            <span>Claro</span>
+          </button>
+          <button class="swatch-btn" data-vidrio="esmerilado">
+            <div class="swatch-circle sw-esmerilado"></div>
+            <span>Esmerilado</span>
+          </button>
+          <button class="swatch-btn" data-vidrio="tintado">
+            <div class="swatch-circle sw-tintado"></div>
+            <span>Tintado</span>
+          </button>
         </div>
-        <input type="range" id="entrepanos-slider" min="0" max="5" value="1" step="1">
       </div>
     </div>
 
-    <!-- EXTRAS -->
-    <div>
-      <div class="section-title">Extras</div>
-      <button id="led-toggle" class="toggle-btn">Iluminación LED: OFF</button>
-      <button id="puertas-toggle" class="toggle-btn">Puertas: Cerradas</button>
+    <!-- PUERTAS -->
+    <div class="section">
+      <div class="section-title">Puertas</div>
+      <div class="control-group">
+
+        <!-- Cantidad -->
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">Cantidad</div>
+          <div class="opts-row">
+            <button class="opt-btn active" data-npuertas="2">2 puertas</button>
+            <button class="opt-btn" data-npuertas="4">4 puertas</button>
+          </div>
+        </div>
+
+        <!-- Tipo -->
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">Tipo</div>
+          <div class="opts-row">
+            <button class="opt-btn active" data-tipo="abatible">⬡ Abatibles</button>
+            <button class="opt-btn" data-tipo="corrediza">⇄ Corredizas</button>
+          </div>
+        </div>
+
+        <!-- Apertura -->
+        <div>
+          <div class="apertura-row">
+            <span>Apertura</span>
+            <span class="val"><span id="apertura-val">0</span>°</span>
+          </div>
+          <input type="range" id="apertura-slider" min="0" max="120" value="0" step="5">
+        </div>
+
+      </div>
+    </div>
+
+    <!-- INTERIOR -->
+    <div class="section">
+      <div class="section-title">Interior</div>
+      <div class="control-group">
+        <div class="slider-row">
+          <label>Entrepaños de cristal <span class="val"><span id="entrepanos-val">1</span></span></label>
+          <input type="range" id="entrepanos-slider" min="0" max="5" value="1" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- ILUMINACIÓN -->
+    <div class="section">
+      <div class="section-title">Iluminación LED</div>
+      <div class="control-group">
+
+        <div class="toggle-row">
+          <span>LED interior</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="led-toggle">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+
+        <div class="led-temp-row" id="led-temp-row">
+          <button class="led-btn calido active" data-temp="calido">☀ Cálida<br><small>2700 K</small></button>
+          <button class="led-btn frio" data-temp="frio">❄ Fría<br><small>5000 K</small></button>
+        </div>
+
+      </div>
     </div>
 
     <!-- PRECIO -->
     <div class="price-card">
-      <div class="label">Cotización Estimada</div>
-      <div><span class="price" id="precio-val">$4,500</span><span class="currency">MXN</span></div>
-      <div class="note">Precio referencial · sujeto a confirmación</div>
+      <div class="price-label">Cotización estimada</div>
+      <div>
+        <span class="price-amount" id="precio-val">$4,500</span>
+        <span class="price-currency">MXN</span>
+      </div>
+      <div class="price-note">Precio referencial · sujeto a confirmación</div>
     </div>
 
   </div>
 
-  <!-- ================= VISOR 3D ================= -->
-  <div id="canvas-container"></div>
+  <!-- ══════════ VISOR 3D ══════════ -->
+  <div id="canvas-container">
+    <div class="canvas-watermark">Aparador · Modelo 1 / 3</div>
+    <div class="canvas-hint">Arrastra para rotar · Scroll para zoom</div>
+  </div>
 
 </div>
 

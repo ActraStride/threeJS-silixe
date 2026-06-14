@@ -7,15 +7,17 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // =====================================================================
-// CONFIGURACIÓN BÁSICA DE LA ESCENA
+// ESCENA BASE
 // =====================================================================
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0d1320);
-scene.fog = new THREE.Fog(0x0d1320, 400, 900);
 
-const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 2000);
-camera.position.set(180, 140, 260);
+// Fondo: degradado cálido oscuro tipo galería de madera
+scene.background = new THREE.Color(0x1a1208);
+scene.fog = new THREE.FogExp2(0x1a1208, 0.0015);
+
+const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 3000);
+camera.position.set(200, 150, 280);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -23,143 +25,186 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.3;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.06;
+controls.dampingFactor = 0.05;
 controls.minDistance = 80;
-controls.maxDistance = 600;
+controls.maxDistance = 700;
 controls.maxPolarAngle = Math.PI / 2 - 0.02;
 controls.target.set(0, 70, 0);
 
 // =====================================================================
-// ENVIRONMENT MAP (PMREM) - clave para reflejos realistas en vidrio/aluminio
+// ENVIRONMENT MAP CÁLIDO
 // =====================================================================
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
 pmremGenerator.compileEquirectangularShader();
-const envRT = pmremGenerator.fromScene(new RoomEnvironment(), 0.04);
+const envRT = pmremGenerator.fromScene(new RoomEnvironment(), 0.06);
 scene.environment = envRT.texture;
 pmremGenerator.dispose();
 
 // =====================================================================
-// ILUMINACIÓN TIPO SHOWROOM
+// ILUMINACIÓN TIPO GALERÍA CÁLIDA
 // =====================================================================
-const ambientLight = new THREE.AmbientLight(0x8899bb, 0.35);
+
+// Ambiente muy suave, cálido
+const ambientLight = new THREE.AmbientLight(0xfff0d0, 0.28);
 scene.add(ambientLight);
 
-// Luz principal (key light)
-const keyLight = new THREE.DirectionalLight(0xfff4e0, 1.4);
-keyLight.position.set(180, 260, 160);
+// Key light — halógeno cálido desde arriba-izquierda
+const keyLight = new THREE.DirectionalLight(0xfff5e0, 1.6);
+keyLight.position.set(150, 280, 180);
 keyLight.castShadow = true;
 keyLight.shadow.mapSize.width = 2048;
 keyLight.shadow.mapSize.height = 2048;
 keyLight.shadow.camera.near = 10;
-keyLight.shadow.camera.far = 800;
-keyLight.shadow.camera.left = -300;
-keyLight.shadow.camera.right = 300;
+keyLight.shadow.camera.far = 900;
+keyLight.shadow.camera.left = -250;
+keyLight.shadow.camera.right = 250;
 keyLight.shadow.camera.top = 300;
-keyLight.shadow.camera.bottom = -300;
-keyLight.shadow.bias = -0.0005;
-keyLight.shadow.radius = 4; // sombras más suaves
+keyLight.shadow.camera.bottom = -200;
+keyLight.shadow.bias = -0.0004;
+keyLight.shadow.radius = 6;
 scene.add(keyLight);
 
-// Luz de relleno (fill light) - tono frío para contraste
-const fillLight = new THREE.DirectionalLight(0x6fb3ff, 0.5);
-fillLight.position.set(-200, 120, -100);
+// Fill light — rebote frío muy suave desde la izquierda baja
+const fillLight = new THREE.DirectionalLight(0xd0e8ff, 0.22);
+fillLight.position.set(-200, 60, -80);
 scene.add(fillLight);
 
-// Luz de contorno (rim light) trasera
-const rimLight = new THREE.PointLight(0x4fd1ff, 0.8, 600);
-rimLight.position.set(0, 180, -220);
+// Rim light — cálido desde atrás
+const rimLight = new THREE.PointLight(0xffcc88, 0.9, 700);
+rimLight.position.set(0, 200, -240);
 scene.add(rimLight);
 
-// Spot focal sobre la vitrina
-const spotLight = new THREE.SpotLight(0xffffff, 1.2, 700, Math.PI / 7, 0.4, 1.2);
-spotLight.position.set(0, 320, 80);
-spotLight.castShadow = true;
-spotLight.shadow.mapSize.width = 1024;
-spotLight.shadow.mapSize.height = 1024;
-spotLight.shadow.radius = 3;
-spotLight.target.position.set(0, 60, 0);
-scene.add(spotLight);
-scene.add(spotLight.target);
+// Spot focal central — simula spot de galería empotrado en techo
+const spotFocal = new THREE.SpotLight(0xfff8e8, 2.0, 800, Math.PI / 8, 0.35, 1.5);
+spotFocal.position.set(0, 360, 60);
+spotFocal.castShadow = true;
+spotFocal.shadow.mapSize.width = 1024;
+spotFocal.shadow.mapSize.height = 1024;
+spotFocal.shadow.radius = 4;
+spotFocal.target.position.set(0, 60, 0);
+scene.add(spotFocal);
+scene.add(spotFocal.target);
+
+// Spots laterales para profundidad — tipo galería con varios puntos
+const spotIzq = new THREE.SpotLight(0xffe0c0, 0.7, 600, Math.PI / 10, 0.5, 2);
+spotIzq.position.set(-160, 300, 40);
+spotIzq.target.position.set(-60, 60, 0);
+scene.add(spotIzq);
+scene.add(spotIzq.target);
+
+const spotDer = new THREE.SpotLight(0xffe0c0, 0.7, 600, Math.PI / 10, 0.5, 2);
+spotDer.position.set(160, 300, 40);
+spotDer.target.position.set(60, 60, 0);
+scene.add(spotDer);
+scene.add(spotDer.target);
 
 // =====================================================================
-// SUELO Y ENTORNO
+// SUELO Y ENTORNO — PISO PARQUET / MADERA OSCURA
 // =====================================================================
-const floorGeo = new THREE.PlaneGeometry(1000, 1000);
+function crearTexturaParquet() {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Base madera oscura
+    ctx.fillStyle = '#1e1208';
+    ctx.fillRect(0, 0, size, size);
+
+    // Tablones horizontales
+    const numTabletes = 12;
+    const tabH = size / numTabletes;
+    for (let i = 0; i < numTabletes; i++) {
+        const y = i * tabH;
+        const shade = (Math.random() - 0.5) * 15;
+        const r = 30 + shade, g = 18 + shade * 0.5, b = 8 + shade * 0.3;
+        ctx.fillStyle = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
+        ctx.fillRect(0, y + 1, size, tabH - 2);
+
+        // Veta interna
+        for (let j = 0; j < 8; j++) {
+            const vy = y + Math.random() * tabH;
+            ctx.strokeStyle = `rgba(${Math.round(r+10)},${Math.round(g+5)},${Math.round(b+2)},0.25)`;
+            ctx.lineWidth = 0.5 + Math.random();
+            ctx.beginPath();
+            ctx.moveTo(0, vy);
+            ctx.lineTo(size, vy + (Math.random() - 0.5) * 3);
+            ctx.stroke();
+        }
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(6, 6);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+
+const floorGeo = new THREE.PlaneGeometry(1200, 1200);
 const floorMat = new THREE.MeshStandardMaterial({
-    color: 0x0a0e18,
-    roughness: 0.35,
-    metalness: 0.15,
+    map: crearTexturaParquet(),
+    roughness: 0.45,
+    metalness: 0.08,
+    envMapIntensity: 0.4,
 });
 const floor = new THREE.Mesh(floorGeo, floorMat);
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
-// Rejilla sutil tipo "grid" cyberpunk
-const grid = new THREE.GridHelper(800, 40, 0x2a3a55, 0x16203a);
-grid.position.y = 0.05;
-scene.add(grid);
-
-// -----------------------------------------------------------
-// Sombra de contacto (AO falso) bajo la vitrina
-// -----------------------------------------------------------
-function crearTexturaSombraContacto() {
-    const size = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    gradient.addColorStop(0, 'rgba(0,0,0,0.55)');
-    gradient.addColorStop(0.6, 'rgba(0,0,0,0.25)');
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-}
-
-const sombraContactoTex = crearTexturaSombraContacto();
-const sombraContactoMat = new THREE.MeshBasicMaterial({
-    map: sombraContactoTex,
+// Plano de reflexión sutil (charco de luz bajo el mueble)
+const reflGeo = new THREE.PlaneGeometry(1, 1);
+const reflMat = new THREE.MeshStandardMaterial({
+    color: 0xfff4d8,
+    roughness: 0.1,
+    metalness: 0.3,
     transparent: true,
+    opacity: 0.08,
     depthWrite: false,
 });
-const sombraContactoGeo = new THREE.PlaneGeometry(1, 1);
-const sombraContacto = new THREE.Mesh(sombraContactoGeo, sombraContactoMat);
-sombraContacto.rotation.x = -Math.PI / 2;
-sombraContacto.position.y = 0.08; // ligeramente sobre el piso para evitar z-fighting
-scene.add(sombraContacto);
+const reflPlane = new THREE.Mesh(reflGeo, reflMat);
+reflPlane.rotation.x = -Math.PI / 2;
+reflPlane.position.y = 0.06;
+scene.add(reflPlane);
+
+// Pared trasera cálida — da contexto de "sala"
+const wallGeo = new THREE.PlaneGeometry(900, 500);
+const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x2a1e12,
+    roughness: 0.85,
+    metalness: 0.0,
+    envMapIntensity: 0.1,
+});
+const wall = new THREE.Mesh(wallGeo, wallMat);
+wall.position.set(0, 250, -300);
+wall.receiveShadow = true;
+scene.add(wall);
 
 // =====================================================================
-// TEXTURAS PROCEDURALES DE MADERA (normal + roughness)
+// TEXTURA PROCEDURAL DE MADERA
 // =====================================================================
 function crearTexturaMaderaColor(baseColorHex) {
     const size = 512;
     const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
 
     const base = new THREE.Color(baseColorHex);
     ctx.fillStyle = `#${base.getHexString()}`;
     ctx.fillRect(0, 0, size, size);
 
-    // Vetas de madera: líneas horizontales con variación de tono
-    const numVetas = 40;
-    for (let i = 0; i < numVetas; i++) {
+    for (let i = 0; i < 50; i++) {
         const y = Math.random() * size;
-        const h = 1 + Math.random() * 4;
-        const shade = (Math.random() - 0.5) * 0.18;
+        const h = 0.8 + Math.random() * 4;
+        const shade = (Math.random() - 0.5) * 0.2;
         const c = base.clone().offsetHSL(0, 0, shade);
-        ctx.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${0.25 + Math.random() * 0.35})`;
+        ctx.fillStyle = `rgba(${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)},${0.2 + Math.random() * 0.4})`;
         ctx.fillRect(0, y, size, h);
     }
 
@@ -172,24 +217,17 @@ function crearTexturaMaderaColor(baseColorHex) {
 function crearTexturaMaderaNormal() {
     const size = 512;
     const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
-
-    // Base: normal apuntando hacia afuera (128,128,255)
     ctx.fillStyle = 'rgb(128,128,255)';
     ctx.fillRect(0, 0, size, size);
-
-    // Variaciones sutiles en R/G para simular relieve de veta
-    const numVetas = 60;
-    for (let i = 0; i < numVetas; i++) {
+    for (let i = 0; i < 70; i++) {
         const y = Math.random() * size;
-        const h = 1 + Math.random() * 3;
-        const offset = (Math.random() - 0.5) * 30;
-        ctx.fillStyle = `rgb(${128 + offset}, ${128 + offset * 0.5}, 255)`;
+        const h = 0.5 + Math.random() * 2.5;
+        const o = (Math.random() - 0.5) * 25;
+        ctx.fillStyle = `rgb(${128 + o},${128 + o * 0.4},255)`;
         ctx.fillRect(0, y, size, h);
     }
-
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     return tex;
@@ -198,453 +236,578 @@ function crearTexturaMaderaNormal() {
 function crearTexturaMaderaRoughness() {
     const size = 512;
     const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
-
-    ctx.fillStyle = 'rgb(140,140,140)';
+    ctx.fillStyle = 'rgb(145,145,145)';
     ctx.fillRect(0, 0, size, size);
-
-    const numVetas = 60;
-    for (let i = 0; i < numVetas; i++) {
+    for (let i = 0; i < 60; i++) {
         const y = Math.random() * size;
-        const h = 1 + Math.random() * 3;
-        const v = 100 + Math.round(Math.random() * 80);
+        const h = 0.5 + Math.random() * 3;
+        const v = 90 + Math.round(Math.random() * 90);
         ctx.fillStyle = `rgb(${v},${v},${v})`;
         ctx.fillRect(0, y, size, h);
     }
-
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     return tex;
 }
 
-const maderaNormalTex = crearTexturaMaderaNormal();
+const maderaNormalTex   = crearTexturaMaderaNormal();
 const maderaRoughnessTex = crearTexturaMaderaRoughness();
 
 // =====================================================================
 // MATERIALES
 // =====================================================================
-
-// Paleta de acabados de madera/melamina
 const ACABADOS_MADERA = {
-    nogal:  { color: 0x6b4226, roughness: 0.55, name: 'Nogal' },
-    blanco: { color: 0xf3f1ec, roughness: 0.35, name: 'Blanco' },
-    negro:  { color: 0x161616, roughness: 0.30, name: 'Negro Mate' },
-    encino: { color: 0xc8a978, roughness: 0.55, name: 'Encino' },
+    nogal:  { color: 0x6b4226, roughness: 0.55 },
+    blanco: { color: 0xf3f1ec, roughness: 0.30 },
+    negro:  { color: 0x161616, roughness: 0.28 },
+    encino: { color: 0xc8a978, roughness: 0.55 },
 };
 
-// Cache de texturas de color por acabado (se generan una vez)
 const maderaColorTexCache = {};
 function getMaderaColorTex(key, color) {
-    if (!maderaColorTexCache[key]) {
-        maderaColorTexCache[key] = crearTexturaMaderaColor(color);
-    }
+    if (!maderaColorTexCache[key]) maderaColorTexCache[key] = crearTexturaMaderaColor(color);
     return maderaColorTexCache[key];
 }
 
 function crearMaterialMadera(key) {
     const def = ACABADOS_MADERA[key] || ACABADOS_MADERA.nogal;
-    const colorTex = getMaderaColorTex(key, def.color);
-
     return new THREE.MeshStandardMaterial({
-        map: colorTex,
+        map: getMaderaColorTex(key, def.color),
         normalMap: maderaNormalTex,
         normalScale: new THREE.Vector2(0.4, 0.4),
         roughnessMap: maderaRoughnessTex,
         roughness: def.roughness,
-        metalness: 0.05,
-        envMapIntensity: 0.6,
+        metalness: 0.04,
+        envMapIntensity: 0.7,
     });
 }
 
-// Vidrio realista con transmisión + atenuación (tinte sutil en bordes gruesos)
-const materialCristal = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    transmission: 0.95,
-    transparent: true,
-    opacity: 1,
-    roughness: 0.05,
-    metalness: 0,
-    ior: 1.45,
-    thickness: 0.5,
-    envMapIntensity: 1.2,
-    clearcoat: 0.3,
-    attenuationColor: new THREE.Color(0xe8f4ff),
-    attenuationDistance: 50,
-    side: THREE.DoubleSide,
-});
+// Vidrio configurable
+const CONFIG_VIDRIO = {
+    claro: {
+        color: 0xffffff, transmission: 0.95, roughness: 0.04,
+        ior: 1.45, thickness: 0.5,
+        attenuationColor: new THREE.Color(0xe8f4ff), attenuationDistance: 50,
+        clearcoat: 0.3, tintOpacity: 0.0,
+    },
+    esmerilado: {
+        color: 0xf0f0ee, transmission: 0.55, roughness: 0.55,
+        ior: 1.45, thickness: 1.0,
+        attenuationColor: new THREE.Color(0xf8f8f0), attenuationDistance: 80,
+        clearcoat: 0.0, tintOpacity: 0.0,
+    },
+    tintado: {
+        color: 0x5a8a60, transmission: 0.70, roughness: 0.08,
+        ior: 1.45, thickness: 0.5,
+        attenuationColor: new THREE.Color(0x608860), attenuationDistance: 30,
+        clearcoat: 0.2, tintOpacity: 0.0,
+    },
+};
 
-const materialEntrepaño = new THREE.MeshPhysicalMaterial({
-    color: 0xeaf6ff,
-    transmission: 0.85,
-    transparent: true,
-    opacity: 1,
-    roughness: 0.08,
-    thickness: 0.3,
-    ior: 1.45,
-    attenuationColor: new THREE.Color(0xd8eeff),
-    attenuationDistance: 30,
-    side: THREE.DoubleSide,
-});
+function crearMaterialCristal(tipo) {
+    const c = CONFIG_VIDRIO[tipo] || CONFIG_VIDRIO.claro;
+    return new THREE.MeshPhysicalMaterial({
+        color: c.color,
+        transmission: c.transmission,
+        transparent: true,
+        opacity: 1,
+        roughness: c.roughness,
+        metalness: 0,
+        ior: c.ior,
+        thickness: c.thickness,
+        envMapIntensity: 1.2,
+        clearcoat: c.clearcoat,
+        attenuationColor: c.attenuationColor,
+        attenuationDistance: c.attenuationDistance,
+        side: THREE.DoubleSide,
+    });
+}
 
-// Aluminio anodizado
+function crearMaterialEntrepaño() {
+    return new THREE.MeshPhysicalMaterial({
+        color: 0xeaf6ff,
+        transmission: 0.85,
+        transparent: true,
+        opacity: 1,
+        roughness: 0.08,
+        thickness: 0.3,
+        ior: 1.45,
+        attenuationColor: new THREE.Color(0xd8eeff),
+        attenuationDistance: 30,
+        side: THREE.DoubleSide,
+    });
+}
+
 const materialAluminio = new THREE.MeshStandardMaterial({
-    color: 0xd8dadd,
-    metalness: 0.95,
-    roughness: 0.18,
-    envMapIntensity: 1.4,
+    color: 0xd2c8b8,
+    metalness: 0.92,
+    roughness: 0.22,
+    envMapIntensity: 1.2,
 });
 
-// Tira LED (emissive)
-const materialLED = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    emissive: 0xfff4cc,
-    emissiveIntensity: 1.6,
-    roughness: 0.4,
-});
+// LED emissive — se actualiza según temperatura
+function crearMaterialLED(temp) {
+    const emColor = temp === 'frio' ? 0xd0eeff : 0xfff4cc;
+    return new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: new THREE.Color(emColor),
+        emissiveIntensity: 1.8,
+        roughness: 0.35,
+    });
+}
 
 // =====================================================================
-// GRUPO PRINCIPAL DE LA VITRINA
+// GRUPO PRINCIPAL
 // =====================================================================
 const vitrinaGroup = new THREE.Group();
 scene.add(vitrinaGroup);
 
-// Referencias para animación de puertas
-let puertaIzqGroup = null;
-let puertaDerGroup = null;
-let ledLights = [];
+// Referencias animación
+let puertas = [];   // { group, baseX|baseAngle, lado: 'izq'|'der'|'izq2'|'der2', tipo: 'abatible'|'corrediza' }
+let ledMeshes = []; // meshes con emissive para flicker
+let ledPointLights = [];
+
+// Targets de animación
+let targetAngles = {};   // para abatibles: { key: ángulo }
+let targetOffsets = {};  // para corredizas: { key: offset X }
 
 // =====================================================================
-// CONSTRUCCIÓN PARAMÉTRICA DEL APARADOR
+// CONSTRUCCIÓN PARAMÉTRICA
 // =====================================================================
-function construirVitrina(params) {
-    const { ancho, alto, profundidad, acabado, entrepanos, ledActivo, puertasAbiertas } = params;
+function construirVitrina(p) {
+    const { ancho, alto, profundidad, acabado, tipoVidrio, entrepanos,
+            ledActivo, ledTemp, numPuertas, tipoPuertas, apertura } = p;
 
-    // Limpiar grupo anterior
-    while (vitrinaGroup.children.length > 0) {
-        const obj = vitrinaGroup.children[0];
-        vitrinaGroup.remove(obj);
-    }
-    ledLights = [];
-    puertaIzqGroup = null;
-    puertaDerGroup = null;
+    // Limpiar
+    while (vitrinaGroup.children.length) vitrinaGroup.remove(vitrinaGroup.children[0]);
+    puertas = [];
+    ledMeshes = [];
+    ledPointLights = [];
+    targetAngles = {};
+    targetOffsets = {};
 
-    const materialMadera = crearMaterialMadera(acabado);
+    const matMadera   = crearMaterialMadera(acabado);
+    const matCristal  = crearMaterialCristal(tipoVidrio);
+    const matEntrepaño = crearMaterialEntrepaño();
 
-    // Ajustar repetición de texturas de madera según dimensiones
-    const repU = Math.max(1, Math.round(ancho / 60));
-    const repV = Math.max(1, Math.round(60 / 60));
-    [materialMadera.map, materialMadera.normalMap, materialMadera.roughnessMap].forEach((t) => {
-        if (t) t.repeat.set(repU, repV);
-    });
-
-    const altoBase = 30;
+    const altoBase   = 30;
     const altoCorona = 10;
-    const altoCristal = Math.max(alto - altoBase - altoCorona, 20);
+    const altoCuerpo = Math.max(alto - altoBase - altoCorona, 20);
 
-    // -----------------------------------------------------------
-    // 1. BASE (mueble inferior)
-    // -----------------------------------------------------------
-    const baseGeo = new THREE.BoxGeometry(ancho, altoBase, profundidad);
-    const baseMesh = new THREE.Mesh(baseGeo, materialMadera);
-    baseMesh.position.y = altoBase / 2;
-    baseMesh.castShadow = true;
-    baseMesh.receiveShadow = true;
-    vitrinaGroup.add(baseMesh);
+    // ── 1. BASE ──
+    addBox(ancho, altoBase, profundidad, matMadera, 0, altoBase / 2, 0, true);
 
-    // Patas / zoclo
-    const zocaloGeo = new THREE.BoxGeometry(ancho - 4, 4, profundidad - 4);
-    const zocaloMesh = new THREE.Mesh(zocaloGeo, new THREE.MeshStandardMaterial({ color: 0x0c0c0c, roughness: 0.6 }));
-    zocaloMesh.position.y = 2;
-    zocaloMesh.castShadow = true;
-    vitrinaGroup.add(zocaloMesh);
+    // Zócalo metálico
+    addBox(ancho - 4, 4, profundidad - 4,
+        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.3 }),
+        0, 2, 0, false);
 
-    // -----------------------------------------------------------
-    // 2. CUERPO DE CRISTAL (carcasa exterior)
-    // -----------------------------------------------------------
-    const cristalGeo = new THREE.BoxGeometry(ancho - 1, altoCristal, profundidad - 1);
-    const cristalMesh = new THREE.Mesh(cristalGeo, materialCristal);
-    cristalMesh.position.y = altoBase + altoCristal / 2;
-    cristalMesh.castShadow = false;
-    vitrinaGroup.add(cristalMesh);
+    // ── 2. PANELES LATERALES opacos (madera) ──
+    const espMadera = 1.8;
+    addBox(espMadera, altoCuerpo, profundidad, matMadera,
+        -ancho / 2 + espMadera / 2, altoBase + altoCuerpo / 2, 0, true);
+    addBox(espMadera, altoCuerpo, profundidad, matMadera,
+        ancho / 2 - espMadera / 2, altoBase + altoCuerpo / 2, 0, true);
 
-    // -----------------------------------------------------------
-    // 3. CORONA (mueble superior)
-    // -----------------------------------------------------------
-    const coronaGeo = new THREE.BoxGeometry(ancho, altoCorona, profundidad);
-    const coronaMesh = new THREE.Mesh(coronaGeo, materialMadera);
-    coronaMesh.position.y = alto - altoCorona / 2;
-    coronaMesh.castShadow = true;
-    coronaMesh.receiveShadow = true;
-    vitrinaGroup.add(coronaMesh);
+    // Panel trasero
+    addBox(ancho, altoCuerpo, 1.5, matMadera,
+        0, altoBase + altoCuerpo / 2, -profundidad / 2 + 0.75, true);
 
-    // -----------------------------------------------------------
-    // 4. PERFILES DE ALUMINIO (4 esquinas verticales)
-    // -----------------------------------------------------------
-    const grosorPerfil = 2.2;
-    const perfilGeo = new THREE.BoxGeometry(grosorPerfil, altoCristal, grosorPerfil);
+    // Panel superior interior
+    addBox(ancho, 1.5, profundidad, matMadera,
+        0, altoBase + altoCuerpo - 0.75, 0, true);
 
-    const posX = ancho / 2 - grosorPerfil / 2 - 0.5;
-    const posZ = profundidad / 2 - grosorPerfil / 2 - 0.5;
-    const posYPerfil = altoBase + altoCristal / 2;
+    // Suelo interior
+    addBox(ancho, 1.5, profundidad, matMadera,
+        0, altoBase + 0.75, 0, true);
 
-    const esquinas = [
-        { x: posX, z: posZ },
-        { x: -posX, z: posZ },
-        { x: posX, z: -posZ },
-        { x: -posX, z: -posZ },
-    ];
+    // ── 3. VIDRIO FRONTAL (solo visible si hay puertas) — marco cristal lateral
+    // El frente queda abierto — lo cierran las puertas
 
-    esquinas.forEach((esq) => {
-        const perfil = new THREE.Mesh(perfilGeo, materialAluminio);
-        perfil.position.set(esq.x, posYPerfil, esq.z);
-        perfil.castShadow = true;
-        perfil.receiveShadow = true;
-        vitrinaGroup.add(perfil);
+    // ── 4. CORONA ──
+    addBox(ancho, altoCorona, profundidad, matMadera,
+        0, alto - altoCorona / 2, 0, true);
+
+    // ── 5. PERFILES DE ALUMINIO ──
+    const gp = 2.0;
+    const yPerfil = altoBase + altoCuerpo / 2;
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sz]) => {
+        addBox(gp, altoCuerpo, gp, materialAluminio,
+            sx * (ancho / 2 - gp / 2 - 0.3),
+            yPerfil,
+            sz * (profundidad / 2 - gp / 2 - 0.3), true);
     });
 
-    // -----------------------------------------------------------
-    // 5. ENTREPAÑOS DE CRISTAL (cantidad configurable)
-    // -----------------------------------------------------------
-    const numEntrepanos = Math.max(0, Math.min(entrepanos, 5));
-    const espacioEntrepanos = altoCristal / (numEntrepanos + 1);
+    // ── 6. ENTREPAÑOS ──
+    const nE = Math.min(entrepanos, 5);
+    const espE = altoCuerpo / (nE + 1);
+    const ledColor = ledTemp === 'frio' ? 0xd0eeff : 0xfff4cc;
+    const ledPLColor = ledTemp === 'frio' ? 0xb0d8ff : 0xfff2cc;
 
-    for (let i = 1; i <= numEntrepanos; i++) {
-        const entrepañoGeo = new THREE.BoxGeometry(ancho - 5, 0.8, profundidad - 5);
-        const entrepaño = new THREE.Mesh(entrepañoGeo, materialEntrepaño);
-        entrepaño.position.y = altoBase + espacioEntrepanos * i;
-        entrepaño.castShadow = true;
-        entrepaño.receiveShadow = true;
-        vitrinaGroup.add(entrepaño);
+    for (let i = 1; i <= nE; i++) {
+        const yE = altoBase + espE * i;
+        const entM = addBox(ancho - espMadera * 2 - 1, 0.8, profundidad - 2,
+            matEntrepaño, 0, yE, 0, false);
+        vitrinaGroup.add(entM);
 
-        // ---------------------------------------------------
-        // 5b. TIRA LED bajo cada entrepaño
-        // ---------------------------------------------------
-        const ledGeo = new THREE.BoxGeometry(ancho - 6, 0.4, 1.2);
-        const ledStrip = new THREE.Mesh(ledGeo, materialLED.clone());
-        ledStrip.position.set(0, entrepaño.position.y - 0.6, profundidad / 2 - 2);
-        ledStrip.visible = ledActivo;
-        vitrinaGroup.add(ledStrip);
-        ledLights.push(ledStrip);
+        // Tira LED bajo entrepaño
+        const ledM = crearLEDStrip(ancho - 8, ledColor, ledActivo);
+        ledM.position.set(0, yE - 0.7, profundidad / 2 - 3);
+        vitrinaGroup.add(ledM);
+        ledMeshes.push(ledM);
 
-        // Punto de luz real para el efecto LED
         if (ledActivo) {
-            const pl = new THREE.PointLight(0xfff2cc, 0.6, profundidad * 1.5, 2);
-            pl.position.copy(ledStrip.position);
-            pl.position.y -= 1;
+            const pl = new THREE.PointLight(ledPLColor, 0.7, profundidad * 2, 2);
+            pl.position.set(0, yE - 1.5, 0);
             vitrinaGroup.add(pl);
-            ledLights.push(pl);
+            ledPointLights.push(pl);
         }
     }
 
-    // Tira LED superior (bajo la corona) — siempre presente si LED activo
-    const ledTopGeo = new THREE.BoxGeometry(ancho - 6, 0.4, 1.2);
-    const ledTop = new THREE.Mesh(ledTopGeo, materialLED.clone());
-    ledTop.position.set(0, alto - altoCorona - 0.5, profundidad / 2 - 2);
-    ledTop.visible = ledActivo;
+    // LED superior
+    const ledTop = crearLEDStrip(ancho - 8, ledColor, ledActivo);
+    ledTop.position.set(0, alto - altoCorona - 0.8, profundidad / 2 - 3);
     vitrinaGroup.add(ledTop);
-    ledLights.push(ledTop);
+    ledMeshes.push(ledTop);
     if (ledActivo) {
-        const plTop = new THREE.PointLight(0xfff2cc, 0.8, profundidad * 2, 2);
-        plTop.position.copy(ledTop.position);
-        plTop.position.y -= 1;
+        const plTop = new THREE.PointLight(ledPLColor, 1.0, profundidad * 3, 2);
+        plTop.position.set(0, alto - altoCorona - 2, 0);
         vitrinaGroup.add(plTop);
-        ledLights.push(plTop);
+        ledPointLights.push(plTop);
     }
 
-    // -----------------------------------------------------------
-    // 6. PUERTAS CORREDIZAS DE VIDRIO (frontales)
-    // -----------------------------------------------------------
-    const grosorVidrioPuerta = 0.6;
-    const altoPuerta = altoCristal - 2;
-    const anchoPuerta = (ancho / 2) - 1.5;
+    // ── 7. PUERTAS ──
+    const altoPuerta = altoCuerpo - 2;
+    const yPuerta = altoBase + altoCuerpo / 2;
+    const zFront = profundidad / 2;
+    const grosorV = 0.55;
 
-    const puertaGeo = new THREE.BoxGeometry(anchoPuerta, altoPuerta, grosorVidrioPuerta);
+    if (tipoPuertas === 'abatible') {
+        construirPuertasAbatibles(numPuertas, ancho, altoPuerta, yPuerta, zFront, grosorV, matCristal, apertura);
+    } else {
+        construirPuertasCorredizas(numPuertas, ancho, altoPuerta, yPuerta, zFront, grosorV, matCristal, apertura);
+    }
 
-    // Puerta izquierda
-    puertaIzqGroup = new THREE.Group();
-    const puertaIzq = new THREE.Mesh(puertaGeo, materialCristal);
-    puertaIzq.castShadow = false;
-    // tirador
-    const tiradorGeo = new THREE.CylinderGeometry(0.4, 0.4, 12, 12);
-    const tiradorIzq = new THREE.Mesh(tiradorGeo, materialAluminio);
-    tiradorIzq.rotation.z = Math.PI / 2;
-    tiradorIzq.position.set(anchoPuerta / 2 - 2, 0, grosorVidrioPuerta);
-    puertaIzqGroup.add(puertaIzq, tiradorIzq);
-    puertaIzqGroup.position.set(-anchoPuerta / 2, posYPerfil, profundidad / 2 - 1.5);
-    vitrinaGroup.add(puertaIzqGroup);
-
-    // Puerta derecha
-    puertaDerGroup = new THREE.Group();
-    const puertaDer = new THREE.Mesh(puertaGeo, materialCristal);
-    puertaDer.castShadow = false;
-    const tiradorDer = new THREE.Mesh(tiradorGeo, materialAluminio);
-    tiradorDer.rotation.z = Math.PI / 2;
-    tiradorDer.position.set(-(anchoPuerta / 2 - 2), 0, grosorVidrioPuerta);
-    puertaDerGroup.add(puertaDer, tiradorDer);
-    puertaDerGroup.position.set(anchoPuerta / 2, posYPerfil, profundidad / 2 - 1.5);
-    vitrinaGroup.add(puertaDerGroup);
-
-    // Estado inicial de apertura (offsets aplicados en updatePuertas)
-    actualizarPosicionPuertas(puertasAbiertas, anchoPuerta);
-
-    // -----------------------------------------------------------
-    // 7. ACTUALIZAR SOMBRA DE CONTACTO según dimensiones
-    // -----------------------------------------------------------
-    const sombraEscalaX = ancho * 1.35;
-    const sombraEscalaZ = profundidad * 1.6;
-    sombraContacto.scale.set(sombraEscalaX, sombraEscalaZ, 1);
+    // ── 8. SOMBRA CONTACTO ──
+    reflPlane.scale.set(ancho * 1.4, profundidad * 1.7, 1);
 }
 
-let targetPuertaIzqX = 0;
-let targetPuertaDerX = 0;
+// ──────────────────────────────────────────────────────────────────────
+// HELPERS GEOMÉTRICOS
+// ──────────────────────────────────────────────────────────────────────
+function addBox(w, h, d, mat, x, y, z, shadow = true) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    mesh.position.set(x, y, z);
+    if (shadow) { mesh.castShadow = true; mesh.receiveShadow = true; }
+    vitrinaGroup.add(mesh);
+    return mesh;
+}
 
-// Anima/posiciona las puertas corredizas
-function actualizarPosicionPuertas(abiertas, anchoPuertaActual) {
-    if (!puertaIzqGroup || !puertaDerGroup) return;
+function crearLEDStrip(ancho, color, visible) {
+    const mat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: new THREE.Color(color),
+        emissiveIntensity: 1.8,
+        roughness: 0.35,
+    });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(ancho, 0.35, 1.0), mat);
+    mesh.visible = visible;
+    return mesh;
+}
 
-    // Guardar posiciones base (cerradas) la primera vez que se construye
-    if (puertaIzqGroup.userData.baseX === undefined) {
-        puertaIzqGroup.userData.baseX = puertaIzqGroup.position.x;
-        puertaDerGroup.userData.baseX = puertaDerGroup.position.x;
-        // Inicializar posición actual a la base para que no "salten" al primer frame
-        puertaIzqGroup.position.x = puertaIzqGroup.userData.baseX;
-        puertaDerGroup.position.x = puertaDerGroup.userData.baseX;
+function crearTirador(anchoPuerta, lado, matAl) {
+    const tirGeo = new THREE.CylinderGeometry(0.38, 0.38, 10, 12);
+    const tir = new THREE.Mesh(tirGeo, matAl);
+    tir.rotation.z = Math.PI / 2;
+    const offsetX = (anchoPuerta / 2 - 2.5) * (lado === 'izq' ? 1 : -1);
+    tir.position.set(offsetX, 0, 0.6);
+    return tir;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// PUERTAS ABATIBLES — bisagra en el borde lateral, giro en Y
+// ──────────────────────────────────────────────────────────────────────
+function construirPuertasAbatibles(numPuertas, ancho, altoPuerta, yPuerta, zFront, grosorV, matCristal, apertura) {
+    const divs = numPuertas;   // 2 o 4
+    const anchoPuerta = ancho / divs - 0.5;
+    const anguloRad = THREE.MathUtils.degToRad(apertura);
+
+    for (let i = 0; i < divs; i++) {
+        const esIzquierda = i < divs / 2;
+        // Centro de la puerta cuando cerrada
+        // La bisagra está en el borde exterior de cada puerta
+        // Puertas izq abren hacia la izquierda (giran en +Y), der hacia derecha (-Y)
+        const dir = esIzquierda ? 1 : -1;
+
+        // Posición X del borde de bisagra (exterior de la puerta)
+        const col = esIzquierda ? i : (divs - 1 - (i - divs / 2));
+        const xBisagra = -ancho / 2 + (esIzquierda ? col : divs / 2 + (divs / 2 - 1 - col)) * (anchoPuerta + 0.5) + (esIzquierda ? 0 : ancho / 2);
+
+        // Reajuste: distribuir uniformemente
+        const xCentroBase = -ancho / 2 + anchoPuerta / 2 + i * (anchoPuerta + 0.5);
+        const xBisagraReal = xCentroBase - dir * anchoPuerta / 2;
+
+        const pGroup = new THREE.Group();
+        pGroup.position.set(xBisagraReal, yPuerta, zFront);
+
+        // La puerta cuelga del borde de bisagra → centro en +dir * anchoPuerta/2
+        const pMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(anchoPuerta, altoPuerta, grosorV),
+            matCristal
+        );
+        pMesh.position.set(dir * anchoPuerta / 2, 0, 0);
+        pGroup.add(pMesh);
+
+        // Tirador
+        const tir = crearTirador(anchoPuerta, esIzquierda ? 'izq' : 'der', materialAluminio);
+        tir.position.x = dir * anchoPuerta / 2;
+        pGroup.add(tir);
+
+        // Marco de aluminio alrededor de la puerta
+        const marcoMat = materialAluminio;
+        // Horizontal top/bottom
+        [0.5, -0.5].forEach(sign => {
+            const mh = new THREE.Mesh(new THREE.BoxGeometry(anchoPuerta + 0.5, 1.0, grosorV + 0.3), marcoMat);
+            mh.position.set(dir * anchoPuerta / 2, sign * altoPuerta / 2, 0);
+            pGroup.add(mh);
+        });
+        // Lateral exterior
+        const ml = new THREE.Mesh(new THREE.BoxGeometry(1.0, altoPuerta, grosorV + 0.3), marcoMat);
+        ml.position.set(dir * anchoPuerta, 0, 0);
+        pGroup.add(ml);
+
+        vitrinaGroup.add(pGroup);
+
+        const key = `p${i}`;
+        targetAngles[key] = -dir * anguloRad;
+        pGroup.rotation.y = -dir * anguloRad;
+
+        puertas.push({ group: pGroup, key, dir, tipo: 'abatible' });
     }
+}
 
-    const desplazamiento = abiertas ? anchoPuertaActual * 0.85 : 0;
-    targetPuertaIzqX = puertaIzqGroup.userData.baseX - desplazamiento;
-    targetPuertaDerX = puertaDerGroup.userData.baseX + desplazamiento;
+// ──────────────────────────────────────────────────────────────────────
+// PUERTAS CORREDIZAS — se desplazan en X
+// ──────────────────────────────────────────────────────────────────────
+function construirPuertasCorredizas(numPuertas, ancho, altoPuerta, yPuerta, zFront, grosorV, matCristal, apertura) {
+    const divs = numPuertas;
+    const anchoPuerta = ancho / divs - 0.3;
+    // apertura 0-120 → offset 0 a anchoPuerta*0.9
+    const offset = (apertura / 120) * anchoPuerta * 0.9;
+
+    for (let i = 0; i < divs; i++) {
+        const esIzquierda = i < divs / 2;
+        const dir = esIzquierda ? -1 : 1;
+        const zOffset = (i % 2 === 0) ? 0 : grosorV + 0.3; // capas alternas
+
+        const xBase = -ancho / 2 + anchoPuerta / 2 + i * (anchoPuerta + 0.3);
+
+        const pGroup = new THREE.Group();
+        pGroup.position.set(xBase + dir * offset, yPuerta, zFront + zOffset);
+
+        const pMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(anchoPuerta, altoPuerta, grosorV),
+            matCristal
+        );
+        pGroup.add(pMesh);
+
+        // Tirador centrado
+        const tirGeo = new THREE.CylinderGeometry(0.38, 0.38, 10, 12);
+        const tir = new THREE.Mesh(tirGeo, materialAluminio);
+        tir.rotation.z = Math.PI / 2;
+        tir.position.set((esIzquierda ? 1 : -1) * (anchoPuerta / 2 - 3), 0, 0.6);
+        pGroup.add(tir);
+
+        // Riel superior
+        const rielGeo = new THREE.BoxGeometry(anchoPuerta, 0.8, 0.8);
+        const riel = new THREE.Mesh(rielGeo, materialAluminio);
+        riel.position.set(0, altoPuerta / 2 + 0.4, 0);
+        pGroup.add(riel);
+
+        vitrinaGroup.add(pGroup);
+
+        const key = `p${i}`;
+        targetOffsets[key] = xBase + dir * offset;
+        puertas.push({ group: pGroup, key, xBase, dir, tipo: 'corrediza' });
+    }
 }
 
 // =====================================================================
-// ESTADO INICIAL DE PARÁMETROS
+// ESTADO
 // =====================================================================
 const state = {
     ancho: 100,
     alto: 120,
     profundidad: 50,
     acabado: 'nogal',
+    tipoVidrio: 'claro',
     entrepanos: 1,
     ledActivo: false,
-    puertasAbiertas: false,
+    ledTemp: 'calido',
+    numPuertas: 2,
+    tipoPuertas: 'abatible',
+    apertura: 0,
 };
 
 construirVitrina(state);
 
 // =====================================================================
-// POSTPROCESADO: Bloom sutil + Output (color/tonemap correcto)
+// POSTPROCESADO
 // =====================================================================
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
 const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(container.clientWidth, container.clientHeight),
-    0.4,   // strength
-    0.5,   // radius
-    0.85   // threshold - solo brillos por encima de esto generan bloom (LEDs, highlights)
+    0.35, 0.55, 0.80
 );
 composer.addPass(bloomPass);
-
-const outputPass = new OutputPass();
-composer.addPass(outputPass);
+composer.addPass(new OutputPass());
 
 // =====================================================================
-// REFERENCIAS DOM
+// DOM
 // =====================================================================
-const anchoSlider = document.getElementById('ancho-slider');
-const altoSlider = document.getElementById('alto-slider');
-const profSlider = document.getElementById('profundidad-slider');
+const anchoSlider    = document.getElementById('ancho-slider');
+const altoSlider     = document.getElementById('alto-slider');
+const profSlider     = document.getElementById('profundidad-slider');
 const entrepanosSlider = document.getElementById('entrepanos-slider');
+const aberturaSlider = document.getElementById('apertura-slider');
 
-const anchoVal = document.getElementById('ancho-val');
-const altoVal = document.getElementById('alto-val');
-const profVal = document.getElementById('profundidad-val');
+const anchoVal    = document.getElementById('ancho-val');
+const altoVal     = document.getElementById('alto-val');
+const profVal     = document.getElementById('profundidad-val');
 const entrepanosVal = document.getElementById('entrepanos-val');
+const aberturaVal = document.getElementById('apertura-val');
+const precioVal   = document.getElementById('precio-val');
 
-const precioVal = document.getElementById('precio-val');
-const ledToggle = document.getElementById('led-toggle');
-const puertasToggle = document.getElementById('puertas-toggle');
-const acabadoButtons = document.querySelectorAll('.acabado-btn');
+const ledToggle   = document.getElementById('led-toggle');
+const ledTempRow  = document.getElementById('led-temp-row');
+
+const acabadoBtns  = document.querySelectorAll('[data-acabado]');
+const vidrioBtns   = document.querySelectorAll('[data-vidrio]');
+const npuertasBtns = document.querySelectorAll('[data-npuertas]');
+const tipoBtns     = document.querySelectorAll('[data-tipo]');
+const ledTempBtns  = document.querySelectorAll('[data-temp]');
 
 // =====================================================================
-// CÁLCULO DE PRECIO ESTIMADO
+// PRECIO
 // =====================================================================
 function calcularPrecio() {
-    const { ancho, alto, profundidad, entrepanos, ledActivo, puertasAbiertas } = state;
-
-    let precio = 1800;
-    precio += ancho * 14;
-    precio += alto * 18;
-    precio += profundidad * 6;
-    precio += entrepanos * 350;
-    if (ledActivo) precio += 650;
-    // puertas siempre incluidas en este modelo, sin costo extra por abrir/cerrar
-
-    return Math.round(precio / 10) * 10;
+    let p = 1800;
+    p += state.ancho * 14;
+    p += state.alto * 18;
+    p += state.profundidad * 6;
+    p += state.entrepanos * 350;
+    if (state.ledActivo) p += 650;
+    if (state.tipoVidrio === 'esmerilado') p += 400;
+    if (state.tipoVidrio === 'tintado')    p += 300;
+    if (state.numPuertas === 4) p += 900;
+    if (state.tipoPuertas === 'abatible') p += 200;
+    return Math.round(p / 10) * 10;
 }
 
 function actualizarPrecio() {
-    const precio = calcularPrecio();
-    precioVal.textContent = `$${precio.toLocaleString('es-MX')}`;
+    precioVal.textContent = `$${calcularPrecio().toLocaleString('es-MX')}`;
 }
 
 // =====================================================================
-// MANEJO DE EVENTOS
+// REBUILD HELPER
 // =====================================================================
-function actualizarParametros() {
-    state.ancho = parseInt(anchoSlider.value);
-    state.alto = parseInt(altoSlider.value);
-    state.profundidad = parseInt(profSlider.value);
-    state.entrepanos = parseInt(entrepanosSlider.value);
-
-    anchoVal.textContent = state.ancho;
-    altoVal.textContent = state.alto;
-    profVal.textContent = state.profundidad;
-    entrepanosVal.textContent = state.entrepanos;
-
+function rebuild() {
     construirVitrina(state);
     actualizarPrecio();
 }
 
-anchoSlider.addEventListener('input', actualizarParametros);
-altoSlider.addEventListener('input', actualizarParametros);
-profSlider.addEventListener('input', actualizarParametros);
-entrepanosSlider.addEventListener('input', actualizarParametros);
+// =====================================================================
+// EVENTOS
+// =====================================================================
+function bindSlider(el, valEl, key, parse = parseInt) {
+    el.addEventListener('input', () => {
+        state[key] = parse(el.value);
+        valEl.textContent = state[key];
+        rebuild();
+    });
+}
 
-// Selector de acabado (botones de color)
-acabadoButtons.forEach((btn) => {
+bindSlider(anchoSlider,    anchoVal,    'ancho');
+bindSlider(altoSlider,     altoVal,     'alto');
+bindSlider(profSlider,     profVal,     'profundidad');
+bindSlider(entrepanosSlider, entrepanosVal, 'entrepanos');
+
+aberturaSlider.addEventListener('input', () => {
+    state.apertura = parseInt(aberturaSlider.value);
+    aberturaVal.textContent = state.apertura;
+    rebuild();
+});
+
+// Selector acabado madera
+acabadoBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-        acabadoButtons.forEach((b) => b.classList.remove('active'));
+        acabadoBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         state.acabado = btn.dataset.acabado;
-        construirVitrina(state);
-        actualizarPrecio();
+        rebuild();
     });
 });
 
-// Toggle LED
-ledToggle.addEventListener('click', () => {
-    state.ledActivo = !state.ledActivo;
-    ledToggle.classList.toggle('active', state.ledActivo);
-    ledToggle.textContent = state.ledActivo ? 'Iluminación LED: ON' : 'Iluminación LED: OFF';
-    construirVitrina(state);
-    actualizarPrecio();
+// Selector vidrio
+vidrioBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        vidrioBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.tipoVidrio = btn.dataset.vidrio;
+        rebuild();
+    });
 });
 
-// Toggle Puertas (animado)
-puertasToggle.addEventListener('click', () => {
-    state.puertasAbiertas = !state.puertasAbiertas;
-    puertasToggle.classList.toggle('active', state.puertasAbiertas);
-    puertasToggle.textContent = state.puertasAbiertas ? 'Puertas: Abiertas' : 'Puertas: Cerradas';
+// Número de puertas
+npuertasBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        npuertasBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.numPuertas = parseInt(btn.dataset.npuertas);
+        rebuild();
+    });
+});
 
-    const anchoPuertaActual = (state.ancho / 2) - 1.5;
-    actualizarPosicionPuertas(state.puertasAbiertas, anchoPuertaActual);
+// Tipo de puerta
+tipoBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        tipoBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.tipoPuertas = btn.dataset.tipo;
+        rebuild();
+    });
+});
+
+// LED toggle
+ledToggle.addEventListener('change', () => {
+    state.ledActivo = ledToggle.checked;
+    ledTempRow.classList.toggle('visible', state.ledActivo);
+    rebuild();
+});
+
+// LED temperatura
+ledTempBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        ledTempBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.ledTemp = btn.dataset.temp;
+
+        // Actualizar bloom según temp: frío = más azul/blanco, cálido = suave
+        if (state.ledTemp === 'frio') {
+            bloomPass.strength = 0.45;
+        } else {
+            bloomPass.strength = 0.30;
+        }
+        rebuild();
+    });
 });
 
 // =====================================================================
-// REDIMENSIONADO DE VENTANA
+// RESIZE
 // =====================================================================
 window.addEventListener('resize', () => {
     camera.aspect = container.clientWidth / container.clientHeight;
@@ -654,31 +817,33 @@ window.addEventListener('resize', () => {
 });
 
 // =====================================================================
-// BUCLE DE ANIMACIÓN
+// LOOP
 // =====================================================================
 const clock = new THREE.Clock();
 
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
+    const t = performance.now();
 
     controls.update();
 
-    // Animación suave de apertura/cierre de puertas
-    if (puertaIzqGroup && puertaDerGroup) {
-        puertaIzqGroup.position.x += (targetPuertaIzqX - puertaIzqGroup.position.x) * Math.min(delta * 6, 1);
-        puertaDerGroup.position.x += (targetPuertaDerX - puertaDerGroup.position.x) * Math.min(delta * 6, 1);
-    }
-
-    // Parpadeo sutil del LED para sensación "encendido"
+    // Flicker LED
     if (state.ledActivo) {
-        const flicker = 1.5 + Math.sin(performance.now() * 0.005) * 0.1;
-        ledLights.forEach((l) => {
-            if (l.material && l.material.emissiveIntensity !== undefined) {
-                l.material.emissiveIntensity = flicker;
+        const flicker = 1.7 + Math.sin(t * 0.004) * 0.08 + Math.sin(t * 0.013) * 0.04;
+        ledMeshes.forEach(m => {
+            if (m.material && m.material.emissiveIntensity !== undefined) {
+                m.material.emissiveIntensity = flicker;
             }
         });
+        const intensidadPL = state.ledTemp === 'frio' ? 0.65 : 0.75;
+        ledPointLights.forEach(pl => {
+            pl.intensity = intensidadPL + Math.sin(t * 0.004) * 0.05;
+        });
     }
+
+    // Animar luz spot — movimiento suave muy sutil tipo respiración
+    spotFocal.intensity = 2.0 + Math.sin(t * 0.0007) * 0.05;
 
     composer.render();
 }
