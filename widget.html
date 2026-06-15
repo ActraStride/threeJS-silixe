@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aparador Línea Sílice · Vitrinas Sílice</title>
+
+<style>
+/* ═══════════════════════════════════════════════════════
+   TOKENS — mismos valores que el configurador full
+═══════════════════════════════════════════════════════ */
+:root {
+  --bg-deep:        #120e07;
+  --bg-page:        #1c150c;
+  --bg-card:        rgba(255, 238, 200, 0.03);
+  --border-warm:    rgba(200, 155, 80, 0.14);
+  --border-active:  rgba(220, 175, 100, 0.45);
+  --accent:         #b8813a;
+  --accent-glow:    #dca85a;
+  --accent-bright:  #f0c870;
+  --accent-soft:    rgba(184, 129, 58, 0.13);
+  --text-main:      #ede0c8;
+  --text-dim:       #8a7a62;
+  --text-muted:     #4e4232;
+  --sep:            rgba(200, 155, 80, 0.10);
+  --radius-card:    10px;
+  --radius-btn:     7px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  background: var(--bg-page);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CONTEXTO DE PÁGINA — simula contenido alrededor del widget
+═══════════════════════════════════════════════════════ */
+.page-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+.page-eyebrow {
+  font-size: 0.62rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.page-title {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 28px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   WIDGET — franja producto: texto + visor
+═══════════════════════════════════════════════════════ */
+.product-widget {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 0;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-warm);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+}
+
+/* ── Columna de texto ── */
+.product-info {
+  padding: 36px 38px;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-tag {
+  font-size: 0.58rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.product-name {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  margin-bottom: 10px;
+  line-height: 1.2;
+}
+
+.product-desc {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 26px;
+}
+
+/* ── Sección de controles ── */
+.controls-block + .controls-block { margin-top: 22px; }
+
+.controls-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 11px;
+  opacity: 0.85;
+}
+
+/* Sliders de medidas */
+.dim-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-warm);
+  border-radius: var(--radius-card);
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin-bottom: 7px;
+}
+.slider-val {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="range"] {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--sep);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  box-shadow: 0 0 8px rgba(240,200,112,0.45);
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  box-shadow: 0 0 12px rgba(240,200,112,0.6);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  border: none;
+  box-shadow: 0 0 8px rgba(240,200,112,0.45);
+}
+
+/* Swatches de madera */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+.swatch-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.swatch-disk {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+}
+.swatch-btn span {
+  font-size: 0.60rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.2;
+  transition: color 0.15s;
+}
+.swatch-btn:hover .swatch-disk { transform: scale(1.05); }
+.swatch-btn.active .swatch-disk {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 10px rgba(240,200,112,0.35);
+  transform: scale(1.08);
+}
+.swatch-btn.active span { color: var(--text-main); }
+
+.sw-nogal  { background: linear-gradient(145deg,#7a4e2d,#502e10); }
+.sw-blanco { background: linear-gradient(145deg,#f0ece2,#d8d2c2); }
+.sw-negro  { background: linear-gradient(145deg,#252525,#0f0f0f); }
+.sw-encino { background: linear-gradient(145deg,#d0b47c,#a88040); }
+
+/* ── Precio + CTA ── */
+.product-footer {
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 1px solid var(--sep);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.price-label-small {
+  font-size: 0.58rem;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.price-amount {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--accent-bright);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.price-currency {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-left: 3px;
+  font-weight: 400;
+}
+
+.cta-btn {
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-glow);
+  color: var(--accent-bright);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 12px 22px;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.cta-btn:hover {
+  background: rgba(220,168,90,0.18);
+  box-shadow: 0 0 16px rgba(220,168,90,0.22);
+  transform: translateY(-1px);
+}
+
+/* ═══════════════════════════════════════════════════════
+   VISOR 3D — columna derecha
+═══════════════════════════════════════════════════════ */
+.product-viewer {
+  position: relative;
+
+  background: linear-gradient(160deg, #1a1208, #0e0804);
+  border-left: 1px solid var(--border-warm);
+  overflow: hidden;
+}
+
+#canvas-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.60rem;
+  color: rgba(200,155,70,0.22);
+  pointer-events: none;
+  letter-spacing: 1.2px;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.lib-badge {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: rgba(12,8,3,0.65);
+  border: 1px solid var(--border-warm);
+  border-radius: 6px;
+  padding: 5px 9px;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  z-index: 2;
+}
+.lib-badge-name {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--accent-glow);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVO
+═══════════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .product-widget { grid-template-columns: 1fr; }
+  .product-viewer { height: 400px; order: -1; }
+  .page-wrap { padding: 28px 16px 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+</style>
+
+<!-- Import map: ajustar rutas a tu vendor folder -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./js/vendor/three/three.module.js",
+    "three/addons/": "./js/vendor/three/"
+  }
+}
+</script>
+</head>
+
+<body>
+
+<div class="page-wrap">
+
+  <div class="page-eyebrow">Catálogo · Aparadores</div>
+  <h1 class="page-title">Línea Sílice — Aparador modular</h1>
+
+  <div class="product-widget">
+
+    <!-- ══════════════════════════════════
+         COLUMNA DE INFORMACIÓN
+    ══════════════════════════════════ -->
+    <div class="product-info">
+      <div class="product-tag">Vitrinas Sílice</div>
+      <h2 class="product-name">Aparador Modelo 1</h2>
+      <p class="product-desc">
+        Estructura en madera maciza con puertas de vidrio templado.
+        Personaliza las medidas y el acabado para ver el resultado
+        en tiempo real antes de cotizar.
+      </p>
+
+      <!-- DIMENSIONES -->
+      <div class="controls-block">
+        <div class="controls-label">Dimensiones</div>
+        <div class="dim-card">
+          <div>
+            <div class="slider-label">
+              Ancho
+              <span class="slider-val"><span id="ancho-val">100</span> cm</span>
+            </div>
+            <input type="range" id="ancho-slider" min="50" max="200" value="100" step="5"
+                   aria-label="Ancho en centímetros">
+          </div>
+
+          <div>
+            <div class="slider-label">
+              Alto
+              <span class="slider-val"><span id="alto-val">120</span> cm</span>
+            </div>
+            <input type="range" id="alto-slider" min="80" max="220" value="120" step="5"
+                   aria-label="Alto en centímetros">
+          </div>
+
+          <div>
+            <div class="slider-label">
+              Profundidad
+              <span class="slider-val"><span id="profundidad-val">50</span> cm</span>
+            </div>
+            <input type="range" id="profundidad-slider" min="35" max="90" value="50" step="5"
+                   aria-label="Profundidad en centímetros">
+          </div>
+        </div>
+      </div>
+
+      <!-- MADERA -->
+      <div class="controls-block">
+        <div class="controls-label">Acabado</div>
+        <div class="swatches">
+          <button class="swatch-btn active" data-acabado="nogal" aria-pressed="true">
+            <div class="swatch-disk sw-nogal"></div>
+            <span>Nogal</span>
+          </button>
+          <button class="swatch-btn" data-acabado="blanco" aria-pressed="false">
+            <div class="swatch-disk sw-blanco"></div>
+            <span>Blanco</span>
+          </button>
+          <button class="swatch-btn" data-acabado="negro" aria-pressed="false">
+            <div class="swatch-disk sw-negro"></div>
+            <span>Negro</span>
+          </button>
+          <button class="swatch-btn" data-acabado="encino" aria-pressed="false">
+            <div class="swatch-disk sw-encino"></div>
+            <span>Encino</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PRECIO + CTA -->
+      <div class="product-footer">
+        <div>
+          <div class="price-label-small">Desde</div>
+          <div>
+            <span class="price-amount" id="precio-val">$4,500</span>
+            <span class="price-currency">MXN</span>
+          </div>
+        </div>
+        <button class="cta-btn" id="personalizar-btn">Personalizar todo →</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         VISOR 3D
+    ══════════════════════════════════ -->
+    <div class="product-viewer">
+      <div id="canvas-container" aria-label="Vista 3D del aparador"></div>
+      <div class="lib-badge" aria-hidden="true">
+        <div class="lib-badge-name">VitrinaViewer.js</div>
+      </div>
+      <div class="canvas-hint">Arrastra · Scroll para zoom</div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { VitrinaViewer } from './js/vitrina-viewer.js';
+
+const viewer = new VitrinaViewer({
+    containerId: 'canvas-container',
+    initialState: {
+        ancho:      100,
+        alto:       120,
+        profundidad: 50,
+        acabado:    'nogal',
+        // resto queda en default: vidrio claro, sin LED, 2 puertas abatibles
+    },
+    onPriceChange: (precio) => {
+        const el = document.getElementById('precio-val');
+        if (el) el.textContent = `$${precio.toLocaleString('es-MX')}`;
+    },
+    showStats: false,
+});
+
+// ─── Referencias DOM ──────────────────────────────────────────
+const q  = (id) => document.getElementById(id);
+const qa = (sel) => document.querySelectorAll(sel);
+
+// ─── Forzar recálculo de tamaño del canvas ────────────────────
+// El renderer mide clientWidth/clientHeight en el constructor; si el
+// grid aún no terminó de asignar la altura de fila en ese instante,
+// el canvas queda con un tamaño menor al del contenedor.
+// Disparamos un resize tras el primer frame y observamos cambios
+// de tamaño del contenedor (sin depender de window.resize).
+requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+
+const resizeObserver = new ResizeObserver(() => {
+    window.dispatchEvent(new Event('resize'));
+});
+resizeObserver.observe(q('canvas-container'));
+
+// ─── Sliders de dimensiones ───────────────────────────────────
+function bindSlider(sliderId, displayId, stateKey) {
+    const slider  = q(sliderId);
+    const display = q(displayId);
+    slider.addEventListener('input', () => {
+        const value = parseInt(slider.value);
+        display.textContent = value;
+        viewer.update({ [stateKey]: value });
+    });
+}
+
+bindSlider('ancho-slider',       'ancho-val',       'ancho');
+bindSlider('alto-slider',        'alto-val',        'alto');
+bindSlider('profundidad-slider', 'profundidad-val', 'profundidad');
+
+// ─── Acabado de madera ─────────────────────────────────────────
+const acabadoBtns = qa('[data-acabado]');
+acabadoBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        acabadoBtns.forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-pressed', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+        viewer.update({ acabado: btn.dataset.acabado });
+    });
+});
+
+// ─── CTA: abrir configurador completo ─────────────────────────
+q('personalizar-btn').addEventListener('click', () => {
+    window.location.href = './full.html';
+});
+</script>
+
+</body>
+</html>
