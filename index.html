@@ -122,28 +122,81 @@ nav {
   background:rgba(200,230,255,.04);
 }
 
-/* Thumb embed */
-.thumb-embed { background:linear-gradient(160deg,#f5f0e8,#e8e0d0); flex-direction:column; }
-.mock-web-nav {
-  width:100%; height:18%;
-  background:rgba(255,255,255,.8); border-bottom:1px solid rgba(0,0,0,.08);
-  display:flex; align-items:center; padding:0 10px; gap:5px;
+/* Thumb embed — franja producto: texto + visor (fiel a widget.html) */
+.thumb-embed {
+  background:linear-gradient(145deg,#1a1208,#0e0804);
+  display:flex; align-items:stretch; padding:0;
 }
-.mock-nav-dot { width:5px; height:5px; border-radius:50%; }
-.mock-nav-dot:nth-child(1){background:#ff6057;}
-.mock-nav-dot:nth-child(2){background:#febc2e;}
-.mock-nav-dot:nth-child(3){background:#28c840;}
-.mock-web-body { flex:1; display:flex; align-items:stretch; padding:8px 10px; gap:8px; }
-.mock-text-col { flex:1; display:flex; flex-direction:column; gap:5px; justify-content:center; }
-.mock-txt-line { height:5px; border-radius:2px; background:rgba(0,0,0,.12); }
-.mock-txt-line.wide{width:80%;} .mock-txt-line.med{width:55%;} .mock-txt-line.short{width:38%;}
-.mock-txt-line.title{height:8px;width:65%;background:rgba(0,0,0,.22);}
+.mock-embed-info {
+  flex:1.05; display:flex; flex-direction:column; justify-content:center;
+  padding:14px 14px 14px 16px; gap:6px;
+}
+.mock-embed-tag {
+  width:36%; height:4px; border-radius:2px;
+  background:rgba(200,155,75,.55); margin-bottom:2px;
+}
+.mock-embed-title { width:70%; height:9px; border-radius:2px; background:rgba(230,210,180,.5); }
+.mock-embed-desc { display:flex; flex-direction:column; gap:5px; margin:6px 0 4px; }
+.mock-embed-desc .mock-txt-line { background:rgba(200,180,150,.14); }
+.mock-embed-finishes { display:flex; gap:5px; margin-top:auto; }
+.mock-embed-finish {
+  width:16px; height:16px; border-radius:4px;
+  border:1.5px solid transparent;
+}
+.mock-embed-finish.nogal  { background:linear-gradient(145deg,#7a4e2d,#502e10); border-color:rgba(240,200,112,.6); }
+.mock-embed-finish.blanco { background:linear-gradient(145deg,#f0ece2,#d8d2c2); }
+.mock-embed-finish.negro  { background:linear-gradient(145deg,#252525,#0f0f0f); }
+.mock-embed-finish.encino { background:linear-gradient(145deg,#d0b47c,#a88040); }
+.mock-embed-price {
+  margin-top:8px; width:34%; height:9px; border-radius:2px;
+  background:rgba(240,200,112,.55);
+}
 .mock-viewer-col {
-  width:52%; border-radius:6px; border:1px solid rgba(200,155,75,.4);
-  background:linear-gradient(135deg,#1a1208,#0e0804);
+  flex:1; border-left:1px solid rgba(200,155,75,.18);
+  background:radial-gradient(ellipse at 60% 45%,rgba(180,120,40,.16),transparent 70%);
   display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;
 }
-.mock-viewer-col .mock-box { width:36px; height:44px; }
+.mock-viewer-col .mock-box { width:46px; height:56px; }
+
+/* Thumb mobile — visor fullscreen + bottom sheet */
+.thumb-mobile {
+  background:linear-gradient(160deg,#1a1208,#0e0804);
+  align-items:flex-end;
+}
+.mock-phone-3d {
+  position:absolute; inset:0;
+  background:radial-gradient(ellipse at 50% 38%,rgba(180,120,40,.14),transparent 65%);
+  display:flex; align-items:center; justify-content:center;
+}
+.mock-phone-3d .mock-box {
+  width:46px; height:56px;
+  transform:perspective(200px) rotateY(-14deg) rotateX(4deg);
+}
+.mock-sheet {
+  position:absolute; left:30%; right:30%; bottom:0;
+  height:40%;
+  background:rgba(22,15,7,.92);
+  border:1px solid rgba(200,155,75,.22);
+  border-bottom:none;
+  border-radius:10px 10px 0 0;
+  display:flex; flex-direction:column; align-items:center;
+  padding:7px 10px 9px;
+  gap:7px;
+  box-shadow:0 -8px 24px rgba(0,0,0,.4);
+}
+.mock-sheet-grip {
+  width:18px; height:3px; border-radius:2px;
+  background:rgba(220,175,100,.4);
+  flex-shrink:0;
+}
+.mock-sheet-row {
+  width:100%; display:flex; justify-content:space-between; align-items:center;
+}
+.mock-sheet-price { width:34%; height:6px; border-radius:2px; background:rgba(240,200,112,.5); }
+.mock-sheet-chev  { width:8px; height:8px; border:1px solid rgba(200,155,75,.4); border-radius:2px; }
+.mock-sheet-bars { width:100%; display:flex; flex-direction:column; gap:4px; margin-top:2px; }
+.mock-sheet-bars .mock-bar { background:rgba(200,155,75,.14); }
+.mock-sheet-bars .mock-bar.accent { background:rgba(200,155,75,.4); width:55%; }
 
 .card-body { padding:16px 18px 18px; }
 .card-tag { font-size:.58rem; letter-spacing:2px; text-transform:uppercase; color:var(--accent); margin-bottom:6px; font-weight:700; }
@@ -236,21 +289,22 @@ footer {
 
     <a class="demo-card" href="./widget.html">
       <div class="card-thumb thumb-embed">
-        <div class="mock-web-nav">
-          <div class="mock-nav-dot"></div>
-          <div class="mock-nav-dot"></div>
-          <div class="mock-nav-dot"></div>
-        </div>
-        <div class="mock-web-body">
-          <div class="mock-text-col">
-            <div class="mock-txt-line title"></div>
+        <div class="mock-embed-info">
+          <div class="mock-embed-tag"></div>
+          <div class="mock-embed-title"></div>
+          <div class="mock-embed-desc">
             <div class="mock-txt-line wide"></div>
             <div class="mock-txt-line med"></div>
-            <div class="mock-txt-line wide"></div>
-            <div class="mock-txt-line short"></div>
           </div>
-          <div class="mock-viewer-col"><div class="mock-box"></div></div>
+          <div class="mock-embed-finishes">
+            <div class="mock-embed-finish nogal"></div>
+            <div class="mock-embed-finish blanco"></div>
+            <div class="mock-embed-finish negro"></div>
+            <div class="mock-embed-finish encino"></div>
+          </div>
+          <div class="mock-embed-price"></div>
         </div>
+        <div class="mock-viewer-col"><div class="mock-box"></div></div>
       </div>
       <div class="card-body">
         <div class="card-tag">Demo 02</div>
@@ -260,6 +314,38 @@ footer {
           <span class="meta-pill">embedded</span>
           <span class="meta-pill">minimal-ui</span>
           <span class="meta-pill">showStats: false</span>
+        </div>
+        <div class="card-cta">
+          <span class="cta-link">Ver demo</span>
+          <span class="cta-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="demo-card" href="./mobile.html">
+      <div class="card-thumb thumb-mobile">
+        <div class="mock-phone-3d"><div class="mock-box"></div></div>
+        <div class="mock-sheet">
+          <div class="mock-sheet-grip"></div>
+          <div class="mock-sheet-row">
+            <div class="mock-sheet-price"></div>
+            <div class="mock-sheet-chev"></div>
+          </div>
+          <div class="mock-sheet-bars">
+            <div class="mock-bar accent"></div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar short"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-tag">Demo 03</div>
+        <div class="card-title">Vista Móvil — Bottom Sheet</div>
+        <div class="card-desc">Visor 3D a pantalla completa con panel de controles deslizable desde abajo. Todos los controles del configurador, optimizado para touch.</div>
+        <div class="card-meta">
+          <span class="meta-pill">mobile-first</span>
+          <span class="meta-pill">bottom-sheet</span>
+          <span class="meta-pill">all-controls</span>
         </div>
         <div class="card-cta">
           <span class="cta-link">Ver demo</span>

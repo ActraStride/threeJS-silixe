@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Configurador 3D · Móvil · Vitrinas Sílice</title>
+
+<style>
+/* ═══════════════════════════════════════════════════════
+   TOKENS — mismos valores que el resto del sistema
+═══════════════════════════════════════════════════════ */
+:root {
+  --bg-deep:        #120e07;
+  --bg-panel:       rgba(22, 15, 7, 0.92);
+  --bg-card:        rgba(255, 238, 200, 0.03);
+  --border-warm:    rgba(200, 155, 80, 0.14);
+  --border-active:  rgba(220, 175, 100, 0.45);
+  --accent:         #b8813a;
+  --accent-glow:    #dca85a;
+  --accent-bright:  #f0c870;
+  --accent-soft:    rgba(184, 129, 58, 0.13);
+  --text-main:      #ede0c8;
+  --text-dim:       #8a7a62;
+  --text-muted:     #4e4232;
+  --text-micro:     #3a3028;
+  --sep:            rgba(200, 155, 80, 0.10);
+  --radius-card:    10px;
+  --radius-btn:     7px;
+
+  /* Bottom sheet */
+  --sheet-collapsed: 92px;   /* alto visible cuando está cerrado (handle + precio) */
+  --sheet-peek:      40vh;   /* alto al arrastrar parcialmente */
+  --sheet-expanded:  86vh;   /* alto máximo expandido */
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg-deep);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--text-main);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  position: fixed;
+  inset: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   VISOR 3D — ocupa toda la pantalla, fijo de fondo
+═══════════════════════════════════════════════════════ */
+#canvas-container {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.canvas-hint {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.62rem;
+  color: rgba(200,155,70,0.28);
+  pointer-events: none;
+  letter-spacing: 1.2px;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.lib-badge {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  right: 14px;
+  background: rgba(12,8,3,0.65);
+  border: 1px solid var(--border-warm);
+  border-radius: 6px;
+  padding: 5px 9px;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  z-index: 1;
+}
+.lib-badge-name {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--accent-glow);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+/* Brand mark top-left */
+.brand-float {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  left: 16px;
+  display: flex; align-items: center; gap: 7px;
+  z-index: 1;
+  pointer-events: none;
+}
+.brand-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-glow);
+  box-shadow: 0 0 7px var(--accent-glow);
+  animation: pulse-dot 3s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 7px var(--accent-glow); }
+  50%       { opacity: 0.5; box-shadow: 0 0 3px var(--accent-glow); }
+}
+.brand-label {
+  font-size: 0.60rem;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+}
+
+/* ═══════════════════════════════════════════════════════
+   BOTTOM SHEET
+═══════════════════════════════════════════════════════ */
+#sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: var(--sheet-collapsed);
+  max-height: var(--sheet-expanded);
+  background: var(--bg-panel);
+  backdrop-filter: blur(28px) saturate(130%);
+  border-top: 1px solid var(--border-warm);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 48px rgba(0,0,0,0.55);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  touch-action: none;
+  transition: height 0.32s cubic-bezier(.2,.8,.2,1);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+#sheet.dragging { transition: none; }
+
+/* Handle */
+.sheet-handle-area {
+  flex-shrink: 0;
+  padding: 10px 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: grab;
+}
+.sheet-grip {
+  width: 38px; height: 4px;
+  border-radius: 3px;
+  background: var(--border-active);
+  opacity: 0.55;
+}
+
+/* Fila de precio — siempre visible */
+.sheet-summary {
+  flex-shrink: 0;
+  padding: 0 18px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--sep);
+}
+.summary-price-block .price-label-small {
+  font-size: 0.58rem;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+.price-amount {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent-bright);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.price-currency {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-left: 3px;
+  font-weight: 400;
+}
+.summary-hint {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.summary-hint .chevron {
+  display: inline-block;
+  transition: transform 0.32s ease;
+}
+#sheet.expanded .summary-hint .chevron { transform: rotate(180deg); }
+
+/* Contenido scrollable */
+#sheet-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200,155,80,0.18) transparent;
+}
+#sheet-scroll::-webkit-scrollbar { width: 3px; }
+#sheet-scroll::-webkit-scrollbar-thumb {
+  background: rgba(200,155,80,0.22);
+  border-radius: 3px;
+}
+#sheet.expanded #sheet-scroll {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ── Secciones (idénticas a full.html) ── */
+.section { padding-top: 16px; }
+.section:first-child { padding-top: 0; }
+
+.section-label {
+  font-size: 0.59rem;
+  font-weight: 700;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.85;
+}
+.section-label::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: var(--sep);
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-warm);
+  border-radius: var(--radius-card);
+  padding: 12px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slider-row {}
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin-bottom: 7px;
+}
+.slider-val {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="range"] {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--sep);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  box-shadow: 0 0 8px rgba(240,200,112,0.45);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  border: none;
+  box-shadow: 0 0 8px rgba(240,200,112,0.45);
+}
+
+/* Swatches */
+.swatches { display: grid; gap: 7px; }
+.swatches-4 { grid-template-columns: repeat(4, 1fr); }
+.swatches-3 { grid-template-columns: repeat(3, 1fr); }
+
+.swatch-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.swatch-disk {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+}
+.swatch-btn span {
+  font-size: 0.60rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.2;
+}
+.swatch-btn.active .swatch-disk {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 10px rgba(240,200,112,0.35);
+  transform: scale(1.08);
+}
+.swatch-btn.active span { color: var(--text-main); }
+
+.sw-nogal  { background: linear-gradient(145deg,#7a4e2d,#502e10); }
+.sw-blanco { background: linear-gradient(145deg,#f0ece2,#d8d2c2); }
+.sw-negro  { background: linear-gradient(145deg,#252525,#0f0f0f); }
+.sw-encino { background: linear-gradient(145deg,#d0b47c,#a88040); }
+.sw-claro {
+  background: linear-gradient(145deg,rgba(190,225,255,0.45),rgba(130,185,240,0.25));
+  border: 1px solid rgba(140,195,255,0.35) !important;
+}
+.sw-esmerilado { background: linear-gradient(145deg,rgba(215,215,205,0.45),rgba(170,170,160,0.35)); }
+.sw-tintado    { background: linear-gradient(145deg,rgba(90,130,90,0.5),rgba(50,90,50,0.4)); }
+
+/* Opt buttons */
+.opts-row { display: flex; gap: 5px; }
+.opt-btn {
+  flex: 1;
+  padding: 9px 5px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border-warm);
+  background: rgba(255,255,255,0.02);
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.25;
+  font-family: inherit;
+}
+.opt-btn.active {
+  border-color: var(--accent-glow);
+  background: var(--accent-soft);
+  color: var(--text-main);
+}
+
+.sub-label {
+  font-size: 0.67rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+/* Toggle */
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+.toggle-switch { position: relative; width: 38px; height: 21px; cursor: pointer; flex-shrink: 0; }
+.toggle-switch input { display: none; }
+.toggle-track {
+  position: absolute; inset: 0;
+  border-radius: 11px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-warm);
+  transition: background 0.2s, border-color 0.2s;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle-switch input:checked ~ .toggle-track {
+  background: var(--accent-soft);
+  border-color: var(--accent-glow);
+}
+.toggle-switch input:checked ~ .toggle-thumb {
+  transform: translateX(17px);
+  background: var(--accent-bright);
+  box-shadow: 0 0 7px rgba(240,200,112,0.5);
+}
+
+/* LED temperatura */
+.led-temp-row {
+  display: flex;
+  gap: 5px;
+  opacity: 0.28;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+.led-temp-row.visible { opacity: 1; pointer-events: all; }
+.led-btn {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border-warm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  line-height: 1.4;
+}
+.led-btn.calido { border-color: rgba(255,185,60,0.22); }
+.led-btn.frio   { border-color: rgba(110,165,255,0.22); }
+.led-btn.active.calido {
+  background: rgba(255,175,40,0.10);
+  border-color: #fdb030; color: #ffd070;
+}
+.led-btn.active.frio {
+  background: rgba(90,160,255,0.09);
+  border-color: #6aaeff; color: #a8d0ff;
+}
+
+.price-note {
+  font-size: 0.61rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+</style>
+
+<!-- Import map: ajustar rutas a tu vendor folder -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./js/vendor/three/three.module.js",
+    "three/addons/": "./js/vendor/three/"
+  }
+}
+</script>
+</head>
+
+<body>
+
+<!-- ══════════════════════════════════════
+     VISOR 3D — pantalla completa de fondo
+══════════════════════════════════════ -->
+<div id="canvas-container" aria-label="Vista 3D del aparador"></div>
+
+<div class="brand-float" aria-hidden="true">
+  <div class="brand-dot"></div>
+  <span class="brand-label">Vitrinas Sílice</span>
+</div>
+
+<div class="lib-badge" aria-hidden="true">
+  <div class="lib-badge-name">VitrinaViewer.js</div>
+</div>
+
+<div class="canvas-hint">Arrastra · Pellizca para zoom</div>
+
+<!-- ══════════════════════════════════════
+     BOTTOM SHEET
+══════════════════════════════════════ -->
+<div id="sheet" aria-label="Panel de configuración">
+
+  <div class="sheet-handle-area" id="sheet-handle">
+    <div class="sheet-grip"></div>
+  </div>
+
+  <div class="sheet-summary">
+    <div class="summary-price-block">
+      <div class="price-label-small">Cotización estimada</div>
+      <div>
+        <span class="price-amount" id="precio-val">$4,500</span>
+        <span class="price-currency">MXN</span>
+      </div>
+    </div>
+    <div class="summary-hint">
+      Personalizar <span class="chevron">▲</span>
+    </div>
+  </div>
+
+  <div id="sheet-scroll">
+
+    <!-- DIMENSIONES -->
+    <div class="section">
+      <div class="section-label">Dimensiones</div>
+      <div class="card">
+        <div class="slider-row">
+          <div class="slider-label">
+            Ancho
+            <span class="slider-val"><span id="ancho-val">100</span> cm</span>
+          </div>
+          <input type="range" id="ancho-slider" min="50" max="200" value="100" step="5"
+                 aria-label="Ancho en centímetros">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            Alto
+            <span class="slider-val"><span id="alto-val">120</span> cm</span>
+          </div>
+          <input type="range" id="alto-slider" min="80" max="220" value="120" step="5"
+                 aria-label="Alto en centímetros">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            Profundidad
+            <span class="slider-val"><span id="profundidad-val">50</span> cm</span>
+          </div>
+          <input type="range" id="profundidad-slider" min="35" max="90" value="50" step="5"
+                 aria-label="Profundidad en centímetros">
+        </div>
+      </div>
+    </div>
+
+    <!-- ACABADO MADERA -->
+    <div class="section">
+      <div class="section-label">Madera</div>
+      <div class="card">
+        <div class="swatches swatches-4">
+          <button class="swatch-btn active" data-acabado="nogal" aria-pressed="true">
+            <div class="swatch-disk sw-nogal"></div>
+            <span>Nogal</span>
+          </button>
+          <button class="swatch-btn" data-acabado="blanco" aria-pressed="false">
+            <div class="swatch-disk sw-blanco"></div>
+            <span>Blanco</span>
+          </button>
+          <button class="swatch-btn" data-acabado="negro" aria-pressed="false">
+            <div class="swatch-disk sw-negro"></div>
+            <span>Negro</span>
+          </button>
+          <button class="swatch-btn" data-acabado="encino" aria-pressed="false">
+            <div class="swatch-disk sw-encino"></div>
+            <span>Encino</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIDRIO -->
+    <div class="section">
+      <div class="section-label">Vidrio</div>
+      <div class="card">
+        <div class="swatches swatches-3">
+          <button class="swatch-btn active" data-vidrio="claro" aria-pressed="true">
+            <div class="swatch-disk sw-claro"></div>
+            <span>Claro</span>
+          </button>
+          <button class="swatch-btn" data-vidrio="esmerilado" aria-pressed="false">
+            <div class="swatch-disk sw-esmerilado"></div>
+            <span>Esmerilado</span>
+          </button>
+          <button class="swatch-btn" data-vidrio="tintado" aria-pressed="false">
+            <div class="swatch-disk sw-tintado"></div>
+            <span>Tintado</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PUERTAS -->
+    <div class="section">
+      <div class="section-label">Puertas</div>
+      <div class="card">
+
+        <div>
+          <div class="sub-label">Cantidad</div>
+          <div class="opts-row">
+            <button class="opt-btn active" data-npuertas="2" aria-pressed="true">2 puertas</button>
+            <button class="opt-btn" data-npuertas="4" aria-pressed="false">4 puertas</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="sub-label">Tipo de apertura</div>
+          <div class="opts-row">
+            <button class="opt-btn active" data-tipo="abatible" aria-pressed="true">⬡ Abatibles</button>
+            <button class="opt-btn" data-tipo="corrediza" aria-pressed="false">⇄ Corredizas</button>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            Apertura
+            <span class="slider-val"><span id="apertura-val">0</span>°</span>
+          </div>
+          <input type="range" id="apertura-slider" min="0" max="120" value="0" step="5"
+                 aria-label="Grado de apertura de puertas">
+        </div>
+
+      </div>
+    </div>
+
+    <!-- INTERIOR -->
+    <div class="section">
+      <div class="section-label">Interior</div>
+      <div class="card">
+        <div class="slider-row">
+          <div class="slider-label">
+            Entrepaños de cristal
+            <span class="slider-val"><span id="entrepanos-val">1</span></span>
+          </div>
+          <input type="range" id="entrepanos-slider" min="0" max="5" value="1" step="1"
+                 aria-label="Número de entrepaños de cristal">
+        </div>
+      </div>
+    </div>
+
+    <!-- ILUMINACIÓN -->
+    <div class="section">
+      <div class="section-label">Iluminación</div>
+      <div class="card">
+
+        <div class="toggle-row">
+          <span>Tiras LED interiores</span>
+          <label class="toggle-switch" aria-label="Activar LED">
+            <input type="checkbox" id="led-toggle">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+
+        <div class="led-temp-row" id="led-temp-row" aria-hidden="true">
+          <button class="led-btn calido active" data-temp="calido" aria-pressed="true">
+            ☀ Cálida<br><small>2700 K</small>
+          </button>
+          <button class="led-btn frio" data-temp="frio" aria-pressed="false">
+            ❄ Fría<br><small>5000 K</small>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="price-note">Precio referencial · sujeto a confirmación</div>
+
+  </div>
+</div>
+
+<script type="module">
+import { VitrinaViewer } from './js/vitrina-viewer.js';
+
+const viewer = new VitrinaViewer({
+    containerId: 'canvas-container',
+    initialState: {
+        ancho:      100,
+        alto:       120,
+        profundidad: 50,
+        acabado:    'nogal',
+        tipoVidrio: 'claro',
+        entrepanos:  1,
+        ledActivo:  false,
+        ledTemp:    'calido',
+        numPuertas:  2,
+        tipoPuertas: 'abatible',
+        apertura:    0,
+    },
+    onPriceChange: (precio) => {
+        const el = document.getElementById('precio-val');
+        if (el) el.textContent = `$${precio.toLocaleString('es-MX')}`;
+    },
+    showStats: false,
+});
+
+// El visor ocupa toda la pantalla; recalculamos tras el primer frame
+// y ante cambios de tamaño del viewport (rotación, teclado, etc.)
+requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+
+// ─── Referencias DOM ──────────────────────────────────────────
+const q  = (id) => document.getElementById(id);
+const qa = (sel) => document.querySelectorAll(sel);
+
+// ─── Sliders ──────────────────────────────────────────────────
+function bindSlider(sliderId, displayId, stateKey, parse = parseInt) {
+    const slider  = q(sliderId);
+    const display = q(displayId);
+    slider.addEventListener('input', () => {
+        const value = parse(slider.value);
+        display.textContent = value;
+        viewer.update({ [stateKey]: value });
+    });
+}
+
+bindSlider('ancho-slider',       'ancho-val',       'ancho');
+bindSlider('alto-slider',        'alto-val',        'alto');
+bindSlider('profundidad-slider', 'profundidad-val', 'profundidad');
+bindSlider('entrepanos-slider',  'entrepanos-val',  'entrepanos');
+bindSlider('apertura-slider',    'apertura-val',    'apertura');
+
+// ─── Grupos de botones de selección exclusiva ─────────────────
+function bindButtonGroup(selector, dataAttr, stateKey, parse = (v) => v) {
+    const btns = qa(selector);
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            btns.forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
+            viewer.update({ [stateKey]: parse(btn.dataset[dataAttr]) });
+        });
+    });
+}
+
+bindButtonGroup('[data-acabado]',  'acabado',  'acabado');
+bindButtonGroup('[data-vidrio]',   'vidrio',   'tipoVidrio');
+bindButtonGroup('[data-npuertas]', 'npuertas', 'numPuertas', parseInt);
+bindButtonGroup('[data-tipo]',     'tipo',     'tipoPuertas');
+bindButtonGroup('[data-temp]',     'temp',     'ledTemp');
+
+// ─── LED toggle ─────────────────────────────────────────────────
+const ledToggle  = q('led-toggle');
+const ledTempRow = q('led-temp-row');
+ledToggle.addEventListener('change', () => {
+    const ledActivo = ledToggle.checked;
+    ledTempRow.classList.toggle('visible', ledActivo);
+    viewer.update({ ledActivo });
+});
+
+// ════════════════════════════════════════════════════════════
+// BOTTOM SHEET — drag + snap points
+// ════════════════════════════════════════════════════════════
+(function () {
+    const sheet      = q('sheet');
+    const handle     = q('sheet-handle');
+    const summary    = document.querySelector('.sheet-summary');
+    const scrollArea = q('sheet-scroll');
+
+    const COLLAPSED = () => 92;                              // px
+    const PEEK      = () => window.innerHeight * 0.40;       // px
+    const EXPANDED  = () => window.innerHeight * 0.86;       // px
+
+    let startY = 0;
+    let startHeight = 0;
+    let currentHeight = COLLAPSED();
+    let dragging = false;
+
+    function setHeight(px, animate = true) {
+        currentHeight = px;
+        sheet.classList.toggle('dragging', !animate);
+        sheet.style.height = px + 'px';
+        sheet.classList.toggle('expanded', px > PEEK() * 0.6);
+    }
+
+    function snapTo(px) {
+        sheet.classList.remove('dragging');
+        // Decide el snap point más cercano
+        const points = [COLLAPSED(), PEEK(), EXPANDED()];
+        let closest = points[0];
+        let minDiff = Math.abs(px - closest);
+        for (const p of points) {
+            const diff = Math.abs(px - p);
+            if (diff < minDiff) { minDiff = diff; closest = p; }
+        }
+        setHeight(closest, true);
+    }
+
+    function onDragStart(clientY) {
+        dragging = true;
+        startY = clientY;
+        startHeight = sheet.getBoundingClientRect().height;
+        sheet.classList.add('dragging');
+    }
+
+    function onDragMove(clientY) {
+        if (!dragging) return;
+        const delta = startY - clientY; // arrastrar hacia arriba = positivo
+        let next = startHeight + delta;
+        next = Math.max(COLLAPSED() - 10, Math.min(EXPANDED(), next));
+        setHeight(next, false);
+    }
+
+    function onDragEnd() {
+        if (!dragging) return;
+        dragging = false;
+        snapTo(currentHeight);
+    }
+
+    // Touch
+    handle.addEventListener('touchstart', (e) => onDragStart(e.touches[0].clientY), { passive: true });
+    summary.addEventListener('touchstart', (e) => onDragStart(e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchmove', (e) => {
+        if (dragging) onDragMove(e.touches[0].clientY);
+    }, { passive: true });
+    window.addEventListener('touchend', onDragEnd);
+
+    // Mouse (para pruebas en desktop)
+    handle.addEventListener('mousedown', (e) => onDragStart(e.clientY));
+    summary.addEventListener('mousedown', (e) => onDragStart(e.clientY));
+    window.addEventListener('mousemove', (e) => { if (dragging) onDragMove(e.clientY); });
+    window.addEventListener('mouseup', onDragEnd);
+
+    // Tap en la fila de resumen (sin arrastrar) alterna colapsado/expandido
+    let tapStartY = 0;
+    summary.addEventListener('touchstart', (e) => { tapStartY = e.touches[0].clientY; }, { passive: true });
+    summary.addEventListener('click', () => {
+        if (Math.abs(currentHeight - COLLAPSED()) < 4) {
+            snapTo(EXPANDED());
+        } else {
+            snapTo(COLLAPSED());
+        }
+    });
+
+    // Estado inicial
+    setHeight(COLLAPSED(), true);
+
+    // Recalcular puntos de snap si rota el dispositivo
+    window.addEventListener('resize', () => {
+        if (currentHeight > PEEK() * 0.6) {
+            setHeight(EXPANDED(), true);
+        } else {
+            setHeight(COLLAPSED(), true);
+        }
+    });
+})();
+</script>
+
+</body>
+</html>
