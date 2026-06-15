@@ -5,6 +5,11 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import Stats from 'three/addons/libs/stats.module.js';
+
+const unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+
+
 
 // =====================================================================
 // ESCENA BASE
@@ -29,6 +34,9 @@ renderer.toneMappingExposure = 1.3;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 container.appendChild(renderer.domElement);
 
+// [AÑADIR ESTA LÍNEA] Desactiva el reinicio automático para que sume todos los pases de render
+renderer.info.autoReset = false;
+
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
@@ -36,6 +44,34 @@ controls.minDistance = 80;
 controls.maxDistance = 700;
 controls.maxPolarAngle = Math.PI / 2 - 0.02;
 controls.target.set(0, 70, 0);
+
+
+// Asegurar que el contenedor tenga posición relativa para que los elementos flotantes se alineen dentro de él
+container.style.position = 'relative';
+
+// 1. Inicializar Stats.js (Panel de FPS, MS y Memoria)
+const stats = new Stats();
+stats.showPanel(0); // 0: FPS, 1: MS, 2: MB (RAM)
+stats.dom.style.position = 'absolute';
+stats.dom.style.top = '10px';
+stats.dom.style.left = '10px';
+container.appendChild(stats.dom);
+
+// 2. Crear panel personalizado para la telemetría de WebGL (Polígonos y Draw Calls)
+const infoDiv = document.createElement('div');
+infoDiv.style.position = 'absolute';
+infoDiv.style.bottom = '10px';
+infoDiv.style.left = '10px';
+infoDiv.style.backgroundColor = 'rgba(26, 18, 8, 0.85)'; // Fondo oscuro a tono con tu galería
+infoDiv.style.color = '#fff0d0';
+infoDiv.style.fontFamily = 'monospace';
+infoDiv.style.fontSize = '11px';
+infoDiv.style.padding = '10px';
+infoDiv.style.borderRadius = '5px';
+infoDiv.style.border = '1px solid #6b4226';
+infoDiv.style.pointerEvents = 'none'; // Evita interferir con los clics del mouse u OrbitControls
+infoDiv.style.zIndex = '100';
+container.appendChild(infoDiv);
 
 // =====================================================================
 // ENVIRONMENT MAP CÁLIDO
@@ -104,6 +140,34 @@ spotDer.target.position.set(60, 60, 0);
 scene.add(spotDer);
 scene.add(spotDer.target);
 
+
+
+// Caché para almacenar materiales y evitar duplicados
+const cacheMaterialesMadera = {};
+const cacheMaterialesCristal = {};
+let cacheMaterialEntrepaño = null;
+
+// Funciones optimizadas que buscan en el caché antes de crear uno nuevo
+function obtenerMaterialMadera(key) {
+    if (!cacheMaterialesMadera[key]) {
+        cacheMaterialesMadera[key] = crearMaterialMadera(key);
+    }
+    return cacheMaterialesMadera[key];
+}
+
+function obtenerMaterialCristal(tipo) {
+    if (!cacheMaterialesCristal[tipo]) {
+        cacheMaterialesCristal[tipo] = crearMaterialCristal(tipo);
+    }
+    return cacheMaterialesCristal[tipo];
+}
+
+function obtenerMaterialEntrepaño() {
+    if (!cacheMaterialEntrepaño) {
+        cacheMaterialEntrepaño = crearMaterialEntrepaño();
+    }
+    return cacheMaterialEntrepaño;
+}
 // =====================================================================
 // SUELO Y ENTORNO — PISO PARQUET / MADERA OSCURA
 // =====================================================================
@@ -255,6 +319,9 @@ function crearTexturaMaderaRoughness() {
 const maderaNormalTex   = crearTexturaMaderaNormal();
 const maderaRoughnessTex = crearTexturaMaderaRoughness();
 
+
+
+
 // =====================================================================
 // MATERIALES
 // =====================================================================
@@ -373,6 +440,45 @@ let ledPointLights = [];
 let targetAngles = {};   // para abatibles: { key: ángulo }
 let targetOffsets = {};  // para corredizas: { key: offset X }
 
+
+function limpiarGrupo(grupo) {
+    grupo.traverse((objeto) => {
+        if (objeto.isMesh) {
+            // 1. Liberar ÚNICAMENTE las geometrías
+            // Como los cubos y cilindros de la vitrina son muy ligeros,
+            // eliminarlos y recrearlos no afecta a los 60 FPS (no recompila shaders)
+            if (objeto.geometry) {
+                // Guarda de seguridad: Si implementó 'unitBoxGeo' globalmente en algún lado, 
+                // evitamos destruirla para no romper el renderizado.
+                const esCajaGlobal = typeof unitBoxGeo !== 'undefined' && objeto.geometry === unitBoxGeo;
+                const esCilindroGlobal = typeof unitCylinderGeo !== 'undefined' && objeto.geometry === unitCylinderGeo;
+
+                if (!esCajaGlobal && !esCilindroGlobal) {
+                    objeto.geometry.dispose(); // Se elimina de forma segura de la GPU
+                }
+            }
+            
+            // [IMPORTANTE] NO llamamos a objeto.material.dispose()
+            // De esta forma los materiales y shaders se quedan en caché.
+        }
+    });
+
+    // 2. Retirar las luces de punto de los leds del grupo
+    const luces = [];
+    grupo.traverse((objeto) => {
+        if (objeto.isPointLight) {
+            luces.push(objeto);
+        }
+    });
+    luces.forEach(l => {
+        if (l.parent) l.parent.remove(l);
+    });
+
+    // 3. Vaciar el grupo físicamente de la escena
+    while (grupo.children.length > 0) {
+        grupo.remove(grupo.children[0]);
+    }
+}
 // =====================================================================
 // CONSTRUCCIÓN PARAMÉTRICA
 // =====================================================================
@@ -381,16 +487,16 @@ function construirVitrina(p) {
             ledActivo, ledTemp, numPuertas, tipoPuertas, apertura } = p;
 
     // Limpiar
-    while (vitrinaGroup.children.length) vitrinaGroup.remove(vitrinaGroup.children[0]);
+    limpiarGrupo(vitrinaGroup);
     puertas = [];
     ledMeshes = [];
     ledPointLights = [];
     targetAngles = {};
     targetOffsets = {};
 
-    const matMadera   = crearMaterialMadera(acabado);
-    const matCristal  = crearMaterialCristal(tipoVidrio);
-    const matEntrepaño = crearMaterialEntrepaño();
+    const matMadera    = obtenerMaterialMadera(acabado);
+    const matCristal   = obtenerMaterialCristal(tipoVidrio);
+    const matEntrepaño = obtenerMaterialEntrepaño();
 
     const altoBase   = 30;
     const altoCorona = 10;
@@ -498,7 +604,8 @@ function construirVitrina(p) {
 // HELPERS GEOMÉTRICOS
 // ──────────────────────────────────────────────────────────────────────
 function addBox(w, h, d, mat, x, y, z, shadow = true) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const mesh = new THREE.Mesh(unitBoxGeo, mat); // Usamos la misma geometría global de 1x1x1
+    mesh.scale.set(w, h, d);                      // La escalamos al tamaño real deseado
     mesh.position.set(x, y, z);
     if (shadow) { mesh.castShadow = true; mesh.receiveShadow = true; }
     vitrinaGroup.add(mesh);
@@ -844,8 +951,23 @@ function animate() {
 
     // Animar luz spot — movimiento suave muy sutil tipo respiración
     spotFocal.intensity = 2.0 + Math.sin(t * 0.0007) * 0.05;
+    
+    renderer.info.reset(); 
 
+    // Renderizamos con el composer
     composer.render();
+    
+    stats.update();
+
+    // [NUEVO] Actualizar telemetría de WebGL
+    infoDiv.innerHTML = `
+        <strong>TELEMETRÍA WEBGL:</strong><br/>
+        • Draw Calls: ${renderer.info.render.calls}<br/>
+        • Triángulos: ${renderer.info.render.triangles.toLocaleString()}<br/>
+        • Texturas en Memoria: ${renderer.info.memory.textures}<br/>
+        • Geometrías: ${renderer.info.memory.geometries}
+    `;
+
 }
 
 actualizarPrecio();
