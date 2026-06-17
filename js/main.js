@@ -8,7 +8,9 @@
  *  • Actualizar el precio en pantalla vía onPriceChange.
  *  • Gestionar la visibilidad condicional del panel de temperatura LED.
  *
- * No contiene lógica 3D ni de precios. Toda la lógica vive en vitrina-viewer.js.
+ * No contiene lógica 3D ni de precios. Toda la lógica vive en:
+ *   - vitrina-viewer.js  (motor 3D + Strategy pattern)
+ *   - reglas-negocio.js  (precios + reglas de manufactura)
  */
 
 import { VitrinaViewer } from './vitrina-viewer.js';

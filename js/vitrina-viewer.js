@@ -7,6 +7,10 @@
  * en _drawBase / _drawCuerpo / _drawCorona que apilan bloques
  * matemáticamente mediante un acumulador yActual.
  *
+ * La lógica de precios y las reglas de manufactura viven en reglas-negocio.js.
+ * Los métodos _draw* usan el Patrón Strategy: buscan la función correspondiente
+ * en un diccionario de constructores y la ejecutan, sin if/else.
+ *
  * Uso:
  *   import { VitrinaViewer } from './vitrina-viewer.js';
  *   const viewer = new VitrinaViewer({ containerId: 'canvas-container', ...opts });
@@ -29,6 +33,276 @@ import {
     REGLAS_MODELOS,
 } from './config.js';
 
+import {
+    calcularPrecio,
+    aplicarReglasDeManufactura,
+} from './reglas-negocio.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DICCIONARIOS DE ESTRATEGIAS  (Patrón Strategy)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Cada diccionario mapea una variante de receta a una función constructora pura.
+// Las funciones reciben (viewer, yInicio, altoBloque, state, materiales…)
+// y emiten llamadas a viewer._addBox(). Devuelven la altura consumida para
+// que el acumulador yActual del ensamblador siga funcionando.
+//
+// CRÍTICO: estas funciones deben usar EXCLUSIVAMENTE viewer._addBox() para
+// piezas estructurales — nunca instanciar BoxGeometry directamente.
+// Las geometrías dinámicas (tiradores, LEDs, puertas) pueden usar sus propias
+// geometrías, igual que en el código original.
+
+// ─── Constructores de Base ────────────────────────────────────────────────────
+
+const ConstructoresBase = {
+
+    /**
+     * Base estándar con zócalo decorativo inferior.
+     * @param {VitrinaViewer} viewer
+     * @param {number}        yBase
+     * @param {number}        altoBase
+     * @param {object}        s          Estado sanitizado
+     * @param {THREE.Material} matMadera
+     * @returns {number} Altura consumida
+     */
+    estandar(viewer, yBase, altoBase, s, matMadera) {
+        // Cuerpo principal de la base
+        viewer._addBox(s.ancho, altoBase, s.profundidad, matMadera,
+            0, yBase + altoBase / 2, 0);
+
+        // Zócalo decorativo (rebaje inferior)
+        viewer._addBox(s.ancho - 4, 4, s.profundidad - 4,
+            new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.3 }),
+            0, yBase + 2, 0, false);
+
+        return altoBase;
+    },
+
+    /**
+     * Base con cajón de almacenamiento.
+     * @param {VitrinaViewer} viewer
+     * @param {number}        yBase
+     * @param {number}        altoBase
+     * @param {object}        s          Estado sanitizado
+     * @param {THREE.Material} matMadera
+     * @returns {number} Altura consumida
+     */
+    con_cajon(viewer, yBase, altoBase, s, matMadera) {
+        // Cuerpo principal de la base
+        viewer._addBox(s.ancho, altoBase, s.profundidad, matMadera,
+            0, yBase + altoBase / 2, 0);
+
+        // Línea de división del cajón
+        viewer._addBox(s.ancho - 4, 0.6, s.profundidad - 4,
+            new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.3 }),
+            0, yBase + altoBase * 0.55, 0, false);
+
+        // Frente del cajón (plano de madera con rebaje)
+        viewer._addBox(s.ancho - 6, altoBase * 0.38, s.profundidad * 0.06,
+            matMadera,
+            0, yBase + altoBase * 0.27, s.profundidad / 2 - 0.1);
+
+        // Tirador central del cajón
+        const tirGeo = new THREE.CylinderGeometry(0.4, 0.4, 12, 12);
+        const tir    = new THREE.Mesh(tirGeo, viewer._matAluminio);
+        tir.rotation.z = Math.PI / 2;
+        tir.position.set(0, yBase + altoBase * 0.27, s.profundidad / 2 + 0.6);
+        viewer._vitrinaGroup.add(tir);
+
+        return altoBase;
+    },
+};
+
+// ─── Constructores de Cuerpo ──────────────────────────────────────────────────
+
+const ConstructoresCuerpo = {
+
+    /**
+     * Cuerpo con paneles laterales de vidrio (expositor de lujo).
+     * @param {VitrinaViewer} viewer
+     * @param {number}        yCuerpo
+     * @param {number}        altoCuerpo
+     * @param {object}        s               Estado sanitizado (con reglas aplicadas)
+     * @param {THREE.Material} matMadera
+     * @param {THREE.Material} matCristal
+     * @param {THREE.Material} matEntrepaño
+     * @param {string}        tipoPuertas     Ya sanitizado por reglas de manufactura
+     * @param {number}        numPuertas      Ya sanitizado por reglas de manufactura
+     * @returns {number} Altura consumida
+     */
+    vidrio_completo(viewer, yCuerpo, altoCuerpo, s, matMadera, matCristal, matEntrepaño, tipoPuertas, numPuertas) {
+        return _construirCuerpo(viewer, yCuerpo, altoCuerpo, s, matMadera, matCristal, matEntrepaño, tipoPuertas, numPuertas, matCristal);
+    },
+
+    /**
+     * Cuerpo con paneles laterales de madera (vitrina clásica/minimalista).
+     * @param {VitrinaViewer} viewer
+     * @param {number}        yCuerpo
+     * @param {number}        altoCuerpo
+     * @param {object}        s               Estado sanitizado
+     * @param {THREE.Material} matMadera
+     * @param {THREE.Material} matCristal
+     * @param {THREE.Material} matEntrepaño
+     * @param {string}        tipoPuertas
+     * @param {number}        numPuertas
+     * @returns {number} Altura consumida
+     */
+    costados_madera(viewer, yCuerpo, altoCuerpo, s, matMadera, matCristal, matEntrepaño, tipoPuertas, numPuertas) {
+        return _construirCuerpo(viewer, yCuerpo, altoCuerpo, s, matMadera, matCristal, matEntrepaño, tipoPuertas, numPuertas, matMadera);
+    },
+};
+
+/**
+ * Implementación compartida del cuerpo.
+ * La única diferencia entre variantes es el material del panel lateral (matLateral).
+ * Extraída como función privada del módulo para evitar duplicación.
+ *
+ * @param {VitrinaViewer} viewer
+ * @param {number}        yCuerpo
+ * @param {number}        altoCuerpo
+ * @param {object}        s
+ * @param {THREE.Material} matMadera
+ * @param {THREE.Material} matCristal
+ * @param {THREE.Material} matEntrepaño
+ * @param {string}        tipoPuertas
+ * @param {number}        numPuertas
+ * @param {THREE.Material} matLateral — matCristal o matMadera según variante
+ * @returns {number}
+ */
+function _construirCuerpo(viewer, yCuerpo, altoCuerpo, s, matMadera, matCristal, matEntrepaño, tipoPuertas, numPuertas, matLateral) {
+    const em      = 1.8;   // grosor de montante lateral
+    const yCentro = yCuerpo + altoCuerpo / 2;
+
+    // Paneles laterales
+    viewer._addBox(em, altoCuerpo, s.profundidad, matLateral,
+        -s.ancho / 2 + em / 2, yCentro, 0);
+    viewer._addBox(em, altoCuerpo, s.profundidad, matLateral,
+         s.ancho / 2 - em / 2, yCentro, 0);
+
+    // Panel trasero (siempre madera — soporte estructural)
+    viewer._addBox(s.ancho, altoCuerpo, 1.5, matMadera,
+        0, yCentro, -s.profundidad / 2 + 0.75);
+
+    // Techo interior
+    viewer._addBox(s.ancho, 1.5, s.profundidad, matMadera,
+        0, yCuerpo + altoCuerpo - 0.75, 0);
+
+    // Suelo interior
+    viewer._addBox(s.ancho, 1.5, s.profundidad, matMadera,
+        0, yCuerpo + 0.75, 0);
+
+    // Perfiles de aluminio en las cuatro esquinas del cuerpo
+    const gp = 2.0;
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sz]) => {
+        viewer._addBox(gp, altoCuerpo, gp, viewer._matAluminio,
+            sx * (s.ancho / 2 - gp / 2 - 0.3),
+            yCentro,
+            sz * (s.profundidad / 2 - gp / 2 - 0.3));
+    });
+
+    // Entrepaños y LEDs
+    const nE       = Math.min(s.entrepanos, 5);
+    const espE     = altoCuerpo / (nE + 1);
+    const ledColor   = s.ledTemp === 'frio' ? 0xd0eeff : 0xfff4cc;
+    const ledPLColor = s.ledTemp === 'frio' ? 0xb0d8ff : 0xfff2cc;
+
+    for (let i = 1; i <= nE; i++) {
+        const yE = yCuerpo + espE * i;
+        viewer._addBox(s.ancho - em * 2 - 1, 0.8, s.profundidad - 2,
+            matEntrepaño, 0, yE, 0, false);
+
+        const ledM = viewer._crearLEDStrip(s.ancho - 8, ledColor, s.ledActivo);
+        ledM.position.set(0, yE - 0.7, s.profundidad / 2 - 3);
+        viewer._vitrinaGroup.add(ledM);
+        viewer._ledMeshes.push(ledM);
+
+        if (s.ledActivo) {
+            const pl = new THREE.PointLight(ledPLColor, 0.7, s.profundidad * 2, 2);
+            pl.position.set(0, yE - 1.5, 0);
+            viewer._vitrinaGroup.add(pl);
+            viewer._ledPointLights.push(pl);
+        }
+    }
+
+    // LED superior (bajo el techo interior)
+    const ledTop = viewer._crearLEDStrip(s.ancho - 8, ledColor, s.ledActivo);
+    ledTop.position.set(0, yCuerpo + altoCuerpo - 0.8, s.profundidad / 2 - 3);
+    viewer._vitrinaGroup.add(ledTop);
+    viewer._ledMeshes.push(ledTop);
+    if (s.ledActivo) {
+        const plTop = new THREE.PointLight(ledPLColor, 1.0, s.profundidad * 3, 2);
+        plTop.position.set(0, yCuerpo + altoCuerpo - 2, 0);
+        viewer._vitrinaGroup.add(plTop);
+        viewer._ledPointLights.push(plTop);
+    }
+
+    // Puertas
+    const altoPuerta = altoCuerpo - 2;
+    const yPuerta    = yCuerpo + altoCuerpo / 2;
+    const zFront     = s.profundidad / 2;
+
+    if (tipoPuertas === 'abatible') {
+        viewer._construirPuertasAbatibles(
+            numPuertas, s.ancho, altoPuerta, yPuerta, zFront, 0.55, matCristal, s.apertura);
+    } else {
+        viewer._construirPuertasCorredizas(
+            numPuertas, s.ancho, altoPuerta, yPuerta, zFront, 0.55, matCristal, s.apertura);
+    }
+
+    return altoCuerpo;
+}
+
+// ─── Constructores de Corona ──────────────────────────────────────────────────
+
+const ConstructoresCorona = {
+
+    /**
+     * Sin corona — no añade geometría, consume 0 altura.
+     * @returns {number} 0
+     */
+    ninguna(viewer, yCorona, altoCorona, s, matMadera) {
+        return 0;
+    },
+
+    /**
+     * Tapa plana sin vuelo — misma huella que el cuerpo, perfil mínimo.
+     * @param {VitrinaViewer} viewer
+     * @param {number}        yCorona
+     * @param {number}        altoCorona
+     * @param {object}        s
+     * @param {THREE.Material} matMadera
+     * @returns {number} Altura consumida
+     */
+    tapa_plana_madera(viewer, yCorona, altoCorona, s, matMadera) {
+        viewer._addBox(s.ancho, altoCorona, s.profundidad, matMadera,
+            0, yCorona + altoCorona / 2, 0);
+        return altoCorona;
+    },
+
+    /**
+     * Corona decorativa con vuelo lateral y frontal + moldura de aluminio.
+     * @param {VitrinaViewer} viewer
+     * @param {number}        yCorona
+     * @param {number}        altoCorona
+     * @param {object}        s
+     * @param {THREE.Material} matMadera
+     * @returns {number} Altura consumida
+     */
+    corona_madera(viewer, yCorona, altoCorona, s, matMadera) {
+        const vuelo = 2.5;
+
+        viewer._addBox(s.ancho + vuelo * 2, altoCorona, s.profundidad + vuelo, matMadera,
+            0, yCorona + altoCorona / 2, vuelo / 2);
+
+        // Perfil inferior de la corona (moldura)
+        viewer._addBox(s.ancho + vuelo * 2 + 0.5, 1.5, s.profundidad + vuelo + 0.5,
+            viewer._matAluminio,
+            0, yCorona + 0.75, vuelo / 2);
+
+        return altoCorona;
+    },
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLASE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -50,8 +324,8 @@ export class VitrinaViewer {
             showStats = false,
         } = options;
 
-        // Estado interno privado
-        this.state = { ...DEFAULT_STATE, ...initialState };
+        // Estado interno privado — pasar por reglas antes de guardar
+        this.state = aplicarReglasDeManufactura({ ...DEFAULT_STATE, ...initialState });
 
         // Callback de precio
         this._onPriceChange = onPriceChange;
@@ -89,7 +363,7 @@ export class VitrinaViewer {
 
         // Primer build
         this._build();
-        this._onPriceChange(this._calcularPrecio());
+        this._onPriceChange(calcularPrecio(this.state));
 
         // Resize
         this._onResize = this._onResize.bind(this);
@@ -104,11 +378,13 @@ export class VitrinaViewer {
     // ─── API Pública ──────────────────────────────────────────────────────────
 
     /**
-     * Actualiza el estado con un objeto parcial y reconstruye la vitrina.
+     * Actualiza el estado con un objeto parcial, aplica reglas de manufactura
+     * y reconstruye la vitrina.
      * @param {object} newState — Sólo las claves que cambiaron
      */
     update(newState = {}) {
-        Object.assign(this.state, newState);
+        // Fusionar y sanitizar en una sola operación
+        this.state = aplicarReglasDeManufactura({ ...this.state, ...newState });
 
         // Ajuste de bloom según temperatura de LED
         if ('ledTemp' in newState) {
@@ -116,7 +392,7 @@ export class VitrinaViewer {
         }
 
         this._build();
-        this._onPriceChange(this._calcularPrecio());
+        this._onPriceChange(calcularPrecio(this.state));
     }
 
     /** Libera todos los recursos WebGL y listeners. */
@@ -513,10 +789,10 @@ export class VitrinaViewer {
      *
      * Flujo:
      *  1. Leer receta del modelo activo.
-     *  2. Aplicar reglas globales (overrides automáticos de estado).
+     *  2. El estado ya está sanitizado por aplicarReglasDeManufactura() en update().
      *  3. Calcular alturas de cada bloque.
-     *  4. Apilar bloques con acumulador yActual.
-     *  5. Colocar perfiles de aluminio, entrepaños, LEDs y puertas.
+     *  4. Apilar bloques con acumulador yActual usando Strategy pattern.
+     *  5. Colocar sombra de contacto dinámica.
      *
      * CRÍTICO: utiliza _unitBoxGeo escalado vía mesh.scale.set() —
      * nunca crear BoxGeometry independientes para piezas estructurales.
@@ -533,16 +809,10 @@ export class VitrinaViewer {
         // 1. Receta del modelo
         const receta = REGLAS_MODELOS[s.modelo] || REGLAS_MODELOS.modeloA;
 
-        // 2. Reglas globales — overrides automáticos de estado según contexto
-        //    (no mutan this.state para no romper la UI; son locales al build)
-        let tipoPuertas = s.tipoPuertas;
-        if (s.ancho > 150) tipoPuertas = 'corrediza';     // forzar corredizas en anchos grandes
-        let numPuertas = s.numPuertas;
-        if (receta.cuerpo === 'vidrio_completo' && numPuertas < 2) numPuertas = 2; // mínimo 2 en vidrio completo
-
-        // 3. Altura de cada bloque
+        // 2. Altura de cada bloque
+        //    (las reglas de manufactura ya aplicaron tipoPuertas/numPuertas en update())
         const altoBase   = receta.base === 'con_cajon' ? 40 : 30;
-        const altoCorona = receta.corona === 'ninguna'  ?  0
+        const altoCorona = receta.corona === 'ninguna'          ?  0
                          : receta.corona === 'tapa_plana_madera' ? 5
                          : 10;
         const altoCuerpo = Math.max(s.alto - altoBase - altoCorona, 20);
@@ -552,198 +822,27 @@ export class VitrinaViewer {
         const matCristal   = this._getMaterialCristal(s.tipoVidrio);
         const matEntrepaño = this._getMaterialEntrepaño();
 
-        // 4. Acumulador de posición vertical
+        // 3. Acumulador de posición vertical
         let yActual = 0;
 
-        // Bloque base
-        const altoRealBase = this._drawBase(receta.base, yActual, altoBase, s, matMadera);
-        yActual += altoRealBase;
+        // Bloque base — Strategy
+        const estrategiaBase = ConstructoresBase[receta.base] || ConstructoresBase.estandar;
+        yActual += estrategiaBase(this, yActual, altoBase, s, matMadera);
 
-        // Bloque cuerpo
-        const altoRealCuerpo = this._drawCuerpo(
-            receta.cuerpo, yActual, altoCuerpo, s, matMadera, matCristal, matEntrepaño,
-            tipoPuertas, numPuertas
+        // Bloque cuerpo — Strategy
+        const estrategiaCuerpo = ConstructoresCuerpo[receta.cuerpo] || ConstructoresCuerpo.costados_madera;
+        yActual += estrategiaCuerpo(
+            this, yActual, altoCuerpo, s,
+            matMadera, matCristal, matEntrepaño,
+            s.tipoPuertas, s.numPuertas          // ya sanitizados en update()
         );
-        yActual += altoRealCuerpo;
 
-        // Bloque corona
-        this._drawCorona(receta.corona, yActual, altoCorona, s, matMadera);
+        // Bloque corona — Strategy
+        const estrategiaCorona = ConstructoresCorona[receta.corona] || ConstructoresCorona.ninguna;
+        estrategiaCorona(this, yActual, altoCorona, s, matMadera);
 
-        // 5. Sombra de contacto dinámica
+        // 4. Sombra de contacto dinámica
         this._reflPlane.scale.set(s.ancho * 1.4, s.profundidad * 1.7, 1);
-    }
-
-    // ─── Submétodos de dibujo ─────────────────────────────────────────────────
-
-    /**
-     * Dibuja el bloque base de la vitrina.
-     * @param {string}  variante  — 'estandar' | 'con_cajon'
-     * @param {number}  yBase     — Y de inicio del bloque (acumulador)
-     * @param {number}  altoBase  — Altura total asignada a la base
-     * @param {object}  s         — Estado completo (this.state)
-     * @param {THREE.Material} matMadera
-     * @returns {number} Altura real consumida (para sumar al acumulador)
-     */
-    _drawBase(variante, yBase, altoBase, s, matMadera) {
-        // Cuerpo principal de la base
-        this._addBox(s.ancho, altoBase, s.profundidad, matMadera,
-            0, yBase + altoBase / 2, 0);
-
-        if (variante === 'con_cajon') {
-            // Línea de división del cajón
-            this._addBox(s.ancho - 4, 0.6, s.profundidad - 4,
-                new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.3 }),
-                0, yBase + altoBase * 0.55, 0, false);
-
-            // Frente del cajón (plano de madera con rebaje)
-            this._addBox(s.ancho - 6, altoBase * 0.38, s.profundidad * 0.06,
-                matMadera,
-                0, yBase + altoBase * 0.27, s.profundidad / 2 - 0.1);
-
-            // Tirador central del cajón
-            const tirGeo = new THREE.CylinderGeometry(0.4, 0.4, 12, 12);
-            const tir = new THREE.Mesh(tirGeo, this._matAluminio);
-            tir.rotation.z = Math.PI / 2;
-            tir.position.set(0, yBase + altoBase * 0.27, s.profundidad / 2 + 0.6);
-            this._vitrinaGroup.add(tir);
-        } else {
-            // Zócalo decorativo (rebaje inferior)
-            this._addBox(s.ancho - 4, 4, s.profundidad - 4,
-                new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.3 }),
-                0, yBase + 2, 0, false);
-        }
-
-        return altoBase;
-    }
-
-    /**
-     * Dibuja el cuerpo principal de la vitrina (estructura, entrepaños, LEDs, puertas).
-     * @param {string}  variante      — 'vidrio_completo' | 'costados_madera'
-     * @param {number}  yCuerpo       — Y de inicio del cuerpo (acumulador)
-     * @param {number}  altoCuerpo    — Altura total del cuerpo
-     * @param {object}  s             — Estado completo (this.state)
-     * @param {THREE.Material} matMadera
-     * @param {THREE.Material} matCristal
-     * @param {THREE.Material} matEntrepaño
-     * @param {string}  tipoPuertas   — Puede diferir de s.tipoPuertas (reglas globales)
-     * @param {number}  numPuertas    — Puede diferir de s.numPuertas (reglas globales)
-     * @returns {number} Altura real consumida
-     */
-    _drawCuerpo(variante, yCuerpo, altoCuerpo, s, matMadera, matCristal, matEntrepaño, tipoPuertas, numPuertas) {
-        const em   = 1.8;   // grosor de montante lateral
-        const yCentro = yCuerpo + altoCuerpo / 2;
-
-        // Material lateral: depende de la receta
-        const matLateral = variante === 'vidrio_completo'
-            ? matCristal
-            : matMadera;
-
-        // Paneles laterales
-        this._addBox(em, altoCuerpo, s.profundidad, matLateral,
-            -s.ancho / 2 + em / 2, yCentro, 0);
-        this._addBox(em, altoCuerpo, s.profundidad, matLateral,
-             s.ancho / 2 - em / 2, yCentro, 0);
-
-        // Panel trasero (siempre madera — soporte estructural)
-        this._addBox(s.ancho, altoCuerpo, 1.5, matMadera,
-            0, yCentro, -s.profundidad / 2 + 0.75);
-
-        // Techo interior
-        this._addBox(s.ancho, 1.5, s.profundidad, matMadera,
-            0, yCuerpo + altoCuerpo - 0.75, 0);
-
-        // Suelo interior
-        this._addBox(s.ancho, 1.5, s.profundidad, matMadera,
-            0, yCuerpo + 0.75, 0);
-
-        // Perfiles de aluminio en las cuatro esquinas del cuerpo
-        const gp = 2.0;
-        [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sz]) => {
-            this._addBox(gp, altoCuerpo, gp, this._matAluminio,
-                sx * (s.ancho / 2 - gp / 2 - 0.3),
-                yCentro,
-                sz * (s.profundidad / 2 - gp / 2 - 0.3));
-        });
-
-        // Entrepaños y LEDs
-        const nE       = Math.min(s.entrepanos, 5);
-        const espE     = altoCuerpo / (nE + 1);
-        const ledColor   = s.ledTemp === 'frio' ? 0xd0eeff : 0xfff4cc;
-        const ledPLColor = s.ledTemp === 'frio' ? 0xb0d8ff : 0xfff2cc;
-
-        for (let i = 1; i <= nE; i++) {
-            const yE = yCuerpo + espE * i;
-            this._addBox(s.ancho - em * 2 - 1, 0.8, s.profundidad - 2,
-                matEntrepaño, 0, yE, 0, false);
-
-            const ledM = this._crearLEDStrip(s.ancho - 8, ledColor, s.ledActivo);
-            ledM.position.set(0, yE - 0.7, s.profundidad / 2 - 3);
-            this._vitrinaGroup.add(ledM);
-            this._ledMeshes.push(ledM);
-
-            if (s.ledActivo) {
-                const pl = new THREE.PointLight(ledPLColor, 0.7, s.profundidad * 2, 2);
-                pl.position.set(0, yE - 1.5, 0);
-                this._vitrinaGroup.add(pl);
-                this._ledPointLights.push(pl);
-            }
-        }
-
-        // LED superior (bajo el techo interior)
-        const ledTop = this._crearLEDStrip(s.ancho - 8, ledColor, s.ledActivo);
-        ledTop.position.set(0, yCuerpo + altoCuerpo - 0.8, s.profundidad / 2 - 3);
-        this._vitrinaGroup.add(ledTop);
-        this._ledMeshes.push(ledTop);
-        if (s.ledActivo) {
-            const plTop = new THREE.PointLight(ledPLColor, 1.0, s.profundidad * 3, 2);
-            plTop.position.set(0, yCuerpo + altoCuerpo - 2, 0);
-            this._vitrinaGroup.add(plTop);
-            this._ledPointLights.push(plTop);
-        }
-
-        // Puertas
-        const altoPuerta = altoCuerpo - 2;
-        const yPuerta    = yCuerpo + altoCuerpo / 2;
-        const zFront     = s.profundidad / 2;
-
-        if (tipoPuertas === 'abatible') {
-            this._construirPuertasAbatibles(
-                numPuertas, s.ancho, altoPuerta, yPuerta, zFront, 0.55, matCristal, s.apertura);
-        } else {
-            this._construirPuertasCorredizas(
-                numPuertas, s.ancho, altoPuerta, yPuerta, zFront, 0.55, matCristal, s.apertura);
-        }
-
-        return altoCuerpo;
-    }
-
-    /**
-     * Dibuja la corona (remate superior) de la vitrina.
-     * @param {string}  variante   — 'corona_madera' | 'tapa_plana_madera' | 'ninguna'
-     * @param {number}  yCorona    — Y de inicio de la corona (acumulador)
-     * @param {number}  altoCorona — Altura asignada (0 si 'ninguna')
-     * @param {object}  s          — Estado completo (this.state)
-     * @param {THREE.Material} matMadera
-     */
-    _drawCorona(variante, yCorona, altoCorona, s, matMadera) {
-        if (variante === 'ninguna' || altoCorona === 0) return;
-
-        if (variante === 'tapa_plana_madera') {
-            // Tapa plana sin vuelo — misma huella que el cuerpo
-            this._addBox(s.ancho, altoCorona, s.profundidad, matMadera,
-                0, yCorona + altoCorona / 2, 0);
-            return;
-        }
-
-        // 'corona_madera' — remate con vuelo lateral y frontal
-        const vuelo = 2.5;
-        this._addBox(s.ancho + vuelo * 2, altoCorona, s.profundidad + vuelo, matMadera,
-            0, yCorona + altoCorona / 2, vuelo / 2);
-
-        // Perfil inferior de la corona (moldura)
-        this._addBox(s.ancho + vuelo * 2 + 0.5, 1.5, s.profundidad + vuelo + 0.5,
-            this._matAluminio,
-            0, yCorona + 0.75, vuelo / 2);
     }
 
     // ─── Limpieza de escena ───────────────────────────────────────────────────
@@ -890,40 +989,6 @@ export class VitrinaViewer {
             this._targetOffsets[key] = xBase + dir * offset;
             this._puertas.push({ group: pGroup, key, xBase, dir, tipo: 'corrediza' });
         }
-    }
-
-    // ─── Precio dinámico ──────────────────────────────────────────────────────
-
-    /**
-     * Calcula el precio sumando el costo base dimensional más los costos
-     * derivados de las opciones del usuario y de la receta del modelo activo.
-     */
-    _calcularPrecio() {
-        const s = this.state;
-        const receta = REGLAS_MODELOS[s.modelo] || REGLAS_MODELOS.modeloA;
-
-        let p = 1800;
-
-        // Dimensiones
-        p += s.ancho       * 14;
-        p += s.alto        * 18;
-        p += s.profundidad *  6;
-        p += s.entrepanos  * 350;
-
-        // Opciones del usuario
-        if (s.ledActivo)                    p += 650;
-        if (s.tipoVidrio === 'esmerilado')  p += 400;
-        if (s.tipoVidrio === 'tintado')     p += 300;
-        if (s.numPuertas === 4)             p += 900;
-        if (s.tipoPuertas === 'abatible')   p += 200;
-
-        // Costos por receta del modelo
-        if (receta.base === 'con_cajon')           p += 1200;  // mecanismo de cajón
-        if (receta.cuerpo === 'vidrio_completo')   p +=  600;  // laterales acristalados
-        if (receta.corona === 'ninguna')            p -=  200;  // ahorro de material
-        if (receta.corona === 'corona_madera')     p +=  150;  // moldura con vuelo
-
-        return Math.round(p / 10) * 10;
     }
 
     // ─── Resize ───────────────────────────────────────────────────────────────

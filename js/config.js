@@ -3,11 +3,9 @@
  * Fuente única de verdad para el configurador de vitrinas.
  * Exporta: acabados, vidrio, estado por defecto y recetas de modelos.
  */
-
 import * as THREE from 'three';
 
 // ─── Acabados de madera ───────────────────────────────────────────────────────
-
 export const ACABADOS_MADERA = {
     nogal:  { color: 0x6b4226, roughness: 0.55 },
     blanco: { color: 0xf3f1ec, roughness: 0.30 },
@@ -16,7 +14,6 @@ export const ACABADOS_MADERA = {
 };
 
 // ─── Configuración de vidrio ──────────────────────────────────────────────────
-
 export const CONFIG_VIDRIO = {
     claro: {
         color: 0xffffff, transmission: 0.95, roughness: 0.04,
@@ -39,7 +36,6 @@ export const CONFIG_VIDRIO = {
 };
 
 // ─── Estado por defecto ───────────────────────────────────────────────────────
-
 export const DEFAULT_STATE = {
     ancho:       100,
     alto:        120,
@@ -58,19 +54,20 @@ export const DEFAULT_STATE = {
 // ─── Recetas de modelos ───────────────────────────────────────────────────────
 //
 // Cada receta define qué "variante" renderiza cada bloque constructor.
-// Los métodos _drawBase / _drawCuerpo / _drawCorona interpretan
-// estos valores para decidir qué geometría y materiales usar.
+// Los diccionarios ConstructoresBase / ConstructoresCuerpo / ConstructoresCorona
+// en vitrina-viewer.js usan estas claves para seleccionar la estrategia correcta.
 //
 // Claves disponibles:
 //   base     → 'estandar' | 'con_cajon'
 //   cuerpo   → 'vidrio_completo' | 'costados_madera'
 //   corona   → 'corona_madera' | 'tapa_plana_madera' | 'ninguna'
 //
-// Impacto en precio (ver _calcularPrecio en vitrina-viewer.js):
-//   base 'con_cajon'        → +$1 200
-//   cuerpo 'vidrio_completo'→ +$600
-//   corona 'ninguna'        → −$200 (ahorro de material)
-
+// Impacto en precio (ver COSTOS en reglas-negocio.js):
+//   base 'con_cajon'         → +$1 200
+//   cuerpo 'vidrio_completo' → +$600
+//   corona 'ninguna'         → −$200 (ahorro de material)
+//   corona 'corona_madera'   → +$150 (moldura con vuelo)
+//
 export const REGLAS_MODELOS = {
     /**
      * Modelo A — Vitrina clásica:
